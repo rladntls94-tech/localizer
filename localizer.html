@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>이벤트 페이지 다국어 치환 툴</title>
+<style>
+  /* ===== 디자인 토큰 =====
+     색: 모든 전경/배경 조합이 panel2(#162133) 기준 WCAG AA 4.5:1 이상.
+     크기: 12/13/15/16/18/22 모듈러 스케일. 12px 미만 글자는 쓰지 않는다.
+     간격: 4/8/12/16/24/32 (고밀도 대시보드 스케일) */
+  :root{
+    /* 표면 */
+    --bg:#0c1424; --panel:#111a2e; --panel2:#162133; --field:#0a1122;
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    /* 전경 */
+    --txt:#e8eefc; --dim:#9cb0d1;
+    /* 강조 */
+    --acc:#4ecbcf; --acc2:#38d9a9; --warn:#ffbe3b; --red:#ff6b6b;
+    --pur:#b47cff;            /* 글자·테두리용 (5.6:1) */
+    --pur-solid:#7c3aed;      /* 흰 글자를 얹는 배경용 (5.7:1) */
+    /* 타이포 */
+    --fs-xs:12px; --fs-sm:13px; --fs-base:15px; --fs-md:16px; --fs-lg:18px; --fs-xl:22px;
+    /* 간격 */
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+    /* 형태 */
+    --r-sm:6px; --r-md:10px; --r-lg:14px; --h-ctl:36px;
+    --t:160ms cubic-bezier(.2,.6,.3,1);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.18);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--txt);
+    font-family:'Malgun Gothic','맑은 고딕',system-ui,-apple-system,sans-serif;
+    font-size:var(--fs-base);line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* 키보드 포커스 — 어떤 요소에서도 절대 사라지지 않게 */
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:var(--r-sm)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+          clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .skip{position:absolute;left:var(--sp-3);top:-100px;z-index:100;background:var(--acc);color:var(--bg);
+        padding:var(--sp-2) var(--sp-4);border-radius:var(--r-sm);font-weight:800;transition:top var(--t)}
+  .skip:focus{top:var(--sp-3)}
+
+  /* ===== 헤더 / 스텝 ===== */
+  header{
+    position:sticky;top:0;z-index:50;background:rgba(12,20,36,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:var(--sp-2) var(--sp-4);
+    display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap
+  }
+  header h1{font-size:var(--fs-md);margin:0;font-weight:900;letter-spacing:-.3px;white-space:nowrap}
+  header h1 span{color:var(--acc)}
+  .steps{display:flex;gap:var(--sp-1);margin-left:auto;flex-wrap:wrap}
+  .steps button{
+    display:inline-flex;align-items:center;gap:var(--sp-1);min-height:var(--h-ctl);
+    background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    padding:0 var(--sp-3);border-radius:var(--r-sm);cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:var(--fs-sm);
+    transition:background var(--t),color var(--t),border-color var(--t)
+  }
+  .steps button:hover{border-color:var(--line2);color:var(--txt)}
+  .steps button.on{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+  .steps button .tick{color:var(--acc2);font-weight:900}
+  .steps button.on .tick{color:var(--bg)}
+  .steps button.todo{opacity:.5}
+
+  main{padding:var(--sp-4);max-width:1500px;margin:0 auto}
+  section.step{display:none}
+  section.step.on{display:block}
+
+  /* ===== 카드 ===== */
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:var(--sp-4);margin-bottom:var(--sp-4)
+  }
+  .card h2{
+    margin:0 0 var(--sp-3);font-size:var(--fs-md);font-weight:900;color:#fff;
+    border-left:3px solid var(--acc);padding-left:var(--sp-2);line-height:1.3
+  }
+  .card h2 small{font-weight:600;color:var(--dim);margin-left:var(--sp-2);font-size:var(--fs-sm)}
+  .card.step-a{border-color:rgba(56,217,169,.35)}
+  .card.step-a h2{border-left-color:var(--acc2)}
+
+  /* ===== 폼 컨트롤 ===== */
+  textarea,input[type=text],select{
+    background:var(--field);border:1px solid var(--line);color:var(--txt);
+    border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3);
+    font-family:Consolas,'D2Coding',monospace;font-size:var(--fs-sm);width:100%;
+    transition:border-color var(--t)
+  }
+  input[type=text],select{min-height:var(--h-ctl);font-family:inherit;font-size:var(--fs-base)}
+  textarea:hover,input[type=text]:hover,select:hover{border-color:var(--line2)}
+  textarea{resize:vertical;line-height:1.6}
+  input[type=file]{
+    font-size:var(--fs-sm);color:var(--dim);max-width:100%;
+    font-family:inherit;min-height:var(--h-ctl);padding:var(--sp-1) 0
+  }
+  input[type=file]::file-selector-button{
+    background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    padding:var(--sp-2) var(--sp-3);border-radius:var(--r-sm);cursor:pointer;
+    font-family:inherit;font-weight:700;font-size:var(--fs-sm);margin-right:var(--sp-2);
+    min-height:32px;transition:border-color var(--t),color var(--t)
+  }
+  input[type=file]::file-selector-button:hover{border-color:var(--acc);color:var(--acc)}
+  input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);cursor:pointer;margin:0}
+
+  button.btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+    min-height:var(--h-ctl);background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    padding:0 var(--sp-4);border-radius:var(--r-sm);cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:var(--fs-sm);white-space:nowrap;
+    transition:background var(--t),color var(--t),border-color var(--t)
+  }
+  button.btn:hover{border-color:var(--acc);color:var(--acc)}
+  button.btn.pri{background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--bg);border-color:transparent}
+  button.btn.pri:hover{color:var(--bg);filter:brightness(1.08)}
+  button.btn.gh{background:transparent}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  button.btn:disabled:hover{border-color:var(--line);color:var(--txt)}
+
+  .row{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin-top:var(--sp-3)}
+  .row.tight{margin-top:0}
+  .hint{color:var(--dim);font-size:var(--fs-sm);line-height:1.7}
+  .hint b{color:var(--txt)}
+  label.ck{
+    display:inline-flex;align-items:center;gap:var(--sp-2);color:var(--dim);
+    font-size:var(--fs-sm);cursor:pointer;user-select:none;
+    min-height:var(--h-ctl);padding:0 var(--sp-1);transition:color var(--t)
+  }
+  label.ck:hover{color:var(--txt)}
+  .fld{display:flex;flex-direction:column;gap:var(--sp-1)}
+  .fld > .lb{font-size:var(--fs-xs);font-weight:800;color:var(--dim);letter-spacing:.02em}
+
+  /* ===== 칩 ===== */
+  .chip{
+    display:inline-block;background:rgba(78,203,207,.12);border:1px solid rgba(78,203,207,.4);
+    color:var(--acc);border-radius:var(--r-sm);padding:1px var(--sp-2);
+    font-size:var(--fs-xs);font-weight:800;line-height:1.5;white-space:nowrap
+  }
+  .chip.w{background:rgba(255,190,59,.12);border-color:rgba(255,190,59,.45);color:var(--warn)}
+  .chip.r{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.45);color:var(--red)}
+  .chip.p{background:rgba(180,124,255,.14);border-color:rgba(180,124,255,.45);color:var(--pur)}
+  .chip.q{background:rgba(255,190,59,.14);border-color:rgba(255,190,59,.5);color:var(--warn);cursor:help}
+
+  /* ===== 언어 진행률 카드 ===== */
+  .langcards{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-2)}
+  @media(max-width:820px){.langcards{grid-template-columns:repeat(2,1fr)}}
+  .lc{
+    background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:var(--sp-3);cursor:pointer;text-align:left;color:var(--dim);
+    font-family:inherit;font-size:var(--fs-sm);
+    transition:background var(--t),border-color var(--t)
+  }
+  .lc:hover{border-color:var(--line2);background:rgba(255,255,255,.03)}
+  .lc.on{border-color:var(--pur);background:rgba(180,124,255,.10)}
+  .lc .t{display:flex;align-items:baseline;gap:var(--sp-2);margin-bottom:var(--sp-2)}
+  .lc .code{font-weight:900;font-size:var(--fs-md);color:#fff;letter-spacing:-.2px}
+  .lc.on .code{color:var(--pur)}
+  .lc .nm{font-size:var(--fs-xs)}
+  .lc .pc{margin-left:auto;font-weight:900;font-size:var(--fs-base);color:var(--acc2);font-variant-numeric:tabular-nums}
+  .lc .rest{font-size:var(--fs-xs);margin-top:var(--sp-2)}
+  .lc .rest b{color:var(--warn)}
+  .lc.full .rest b{color:var(--acc2)}
+
+  /* ===== 진행바 ===== */
+  .bar{height:6px;background:var(--field);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));width:0;
+         border-radius:99px;transition:width var(--t)}
+  .lc .bar{height:5px}
+
+  /* ===== 언어 탭 (후처리 규칙) ===== */
+  .langbar{display:flex;gap:var(--sp-1);flex-wrap:wrap;align-items:center;margin-bottom:var(--sp-3)}
+  .langbar button{
+    display:inline-flex;align-items:center;gap:var(--sp-2);min-height:var(--h-ctl);
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    padding:0 var(--sp-3);border-radius:99px;cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:var(--fs-sm);
+    transition:background var(--t),color var(--t),border-color var(--t)
+  }
+  .langbar button:hover{border-color:var(--line2);color:var(--txt)}
+  .langbar button.on{background:var(--pur-solid);border-color:var(--pur-solid);color:#fff}
+  .langbar .pct{font-size:var(--fs-xs);opacity:.85;font-weight:700}
+
+  /* ===== 번역 테이블 ===== */
+  .toolbar{
+    display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;
+    margin-bottom:var(--sp-2);position:sticky;top:53px;z-index:20;
+    background:var(--bg);padding:var(--sp-2) 0;border-bottom:1px solid var(--line)
+  }
+  .toolbar input[type=text]{width:240px}
+  .qabar{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin:0 0 var(--sp-3)}
+  .qabar .qb{
+    min-height:30px;background:rgba(255,190,59,.10);border:1px solid rgba(255,190,59,.4);
+    color:var(--warn);border-radius:99px;padding:0 var(--sp-3);
+    font-size:var(--fs-xs);font-weight:800;cursor:pointer;font-family:inherit;
+    transition:background var(--t),color var(--t)
+  }
+  .qabar .qb:hover{background:rgba(255,190,59,.22)}
+  .qabar .qb.on{background:var(--warn);color:var(--bg);border-color:var(--warn)}
+  .qabar .ok{color:var(--acc2);font-size:var(--fs-sm);font-weight:800}
+
+  .grp{border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:var(--sp-2);
+       overflow:hidden;background:var(--panel2)}
+  .grp>.ctx{
+    background:rgba(0,0,0,.32);padding:var(--sp-2) var(--sp-3);font-size:var(--fs-xs);
+    color:var(--dim);border-bottom:1px solid var(--line);word-break:break-word;line-height:1.6
+  }
+  .grp>.ctx b{color:var(--acc);font-weight:800}
+  .thead{
+    display:grid;grid-template-columns:56px 1fr 1fr;gap:var(--sp-2);
+    padding:var(--sp-1) var(--sp-3);font-size:var(--fs-xs);color:var(--dim);font-weight:800
+  }
+  .seg{
+    display:grid;grid-template-columns:56px 1fr 1fr;gap:var(--sp-2);
+    padding:var(--sp-2) var(--sp-3);border-bottom:1px solid rgba(255,255,255,.06);
+    align-items:start;transition:background var(--t)
+  }
+  .seg:last-child{border-bottom:none}
+  .seg:hover{background:rgba(255,255,255,.02)}
+  .seg.done{box-shadow:inset 3px 0 0 var(--acc2)}
+  .seg.warn{background:rgba(255,190,59,.06);box-shadow:inset 3px 0 0 var(--warn)}
+  .seg .id{
+    color:var(--dim);font-size:var(--fs-xs);font-family:Consolas,monospace;
+    padding-top:var(--sp-2);font-variant-numeric:tabular-nums
+  }
+  .seg .src{
+    background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:var(--sp-2);font-size:var(--fs-sm);line-height:1.6;
+    word-break:break-word;white-space:pre-wrap
+  }
+  .seg .src .meta{display:block;margin-top:var(--sp-1)}
+  .seg .src .meta:empty{display:none}
+  .seg textarea{min-height:40px;font-family:inherit;font-size:var(--fs-sm);line-height:1.6}
+  .seg textarea.bad{border-color:var(--red)}
+
+  /* ===== 자동 정렬 검토 ===== */
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+  .dot.hi{background:var(--acc2)} .dot.mid{background:var(--warn)} .dot.lo{background:var(--red)}
+  .al{
+    display:grid;grid-template-columns:34px 1fr 1fr 56px;gap:var(--sp-2);
+    padding:var(--sp-2) var(--sp-3);border-bottom:1px solid rgba(255,255,255,.06);align-items:start
+  }
+  .al:hover{background:rgba(180,124,255,.07)}
+  .al .k{
+    background:var(--field);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:var(--sp-2);font-size:var(--fs-sm);line-height:1.6;word-break:break-word
+  }
+  .al textarea{min-height:36px;font-family:inherit;font-size:var(--fs-sm);line-height:1.6}
+  .al .mv{display:flex;flex-direction:column;gap:2px}
+  .al .mv button{
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+    border-radius:var(--r-sm);cursor:pointer;font-size:var(--fs-xs);
+    padding:var(--sp-1) 0;line-height:1.3;font-family:inherit;transition:border-color var(--t),color var(--t)
+  }
+  .al .mv button:hover{border-color:var(--pur);color:var(--pur)}
+  .al .c{padding-top:var(--sp-2);text-align:center}
+
+  /* ===== 알림 박스 ===== */
+  .leftbox{
+    background:rgba(255,190,59,.06);border:1px solid rgba(255,190,59,.35);
+    border-radius:var(--r-md);padding:var(--sp-3)
+  }
+  .leftbox b{color:var(--warn)}
+  .leftbox div{font-size:var(--fs-sm);color:var(--dim);padding:2px 0;word-break:break-word}
+  .leftbox.good{background:rgba(56,217,169,.06);border-color:rgba(56,217,169,.4)}
+  .leftbox.good b{color:var(--acc2)}
+
+  /* 빈 상태 */
+  .empty{
+    border:1px dashed var(--line2);border-radius:var(--r-md);padding:var(--sp-6) var(--sp-4);
+    text-align:center;color:var(--dim);font-size:var(--fs-sm);line-height:1.8
+  }
+  .empty b{display:block;color:var(--txt);font-size:var(--fs-md);margin-bottom:var(--sp-2)}
+
+  /* ===== 결과 ===== */
+  #out{font-family:Consolas,'D2Coding',monospace;font-size:var(--fs-xs);min-height:280px;line-height:1.6}
+  iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)}
+
+  /* ===== 토스트 / 배너 ===== */
+  .toast{
+    position:fixed;bottom:var(--sp-5);left:50%;transform:translateX(-50%) translateY(8px);
+    background:var(--acc);color:var(--bg);padding:var(--sp-3) var(--sp-5);border-radius:var(--r-md);
+    font-weight:900;font-size:var(--fs-sm);z-index:999;opacity:0;pointer-events:none;
+    box-shadow:var(--shadow);transition:opacity var(--t),transform var(--t)
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .warnbar{
+    display:none;background:rgba(255,107,107,.14);border-bottom:1px solid rgba(255,107,107,.5);
+    color:#ffd7d7;padding:var(--sp-2) var(--sp-4);font-size:var(--fs-sm);font-weight:700;
+    position:sticky;top:0;z-index:60
+  }
+  .warnbar.on{display:block}
+  .warnbar b{color:var(--red)}
+
+  /* ===== 도움말 ===== */
+  details.help{
+    background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:var(--sp-3);margin-bottom:var(--sp-4)
+  }
+  /* display:flex 를 쓰면 기본 삼각형 마커가 사라지므로 직접 그린다 */
+  details summary{list-style:none;cursor:pointer}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{
+    content:"▸";display:inline-block;margin-right:var(--sp-2);
+    transition:transform var(--t);color:var(--dim)
+  }
+  details[open] > summary::before{transform:rotate(90deg)}
+  details.help summary{font-weight:800;color:var(--acc);font-size:var(--fs-sm);
+                       min-height:28px;display:flex;align-items:center}
+  details.help summary::before{color:var(--acc)}
+  details.help ol{margin:var(--sp-3) 0 0;padding-left:var(--sp-5);color:var(--dim);
+                  line-height:1.9;font-size:var(--fs-sm)}
+  details > summary.hint{min-height:var(--h-ctl);display:flex;align-items:center}
+  code{
+    background:var(--field);padding:1px var(--sp-1);border-radius:4px;
+    color:var(--warn);font-size:var(--fs-xs);font-family:Consolas,monospace
+  }
+
+  /* ===== 반응형 ===== */
+  @media(max-width:900px){
+    .grid2{grid-template-columns:1fr}
+    .seg{grid-template-columns:44px 1fr}
+    .seg .id{grid-column:1;grid-row:1/3}
+    .thead{display:none}
+    .al{grid-template-columns:28px 1fr 46px}
+    .al textarea{grid-column:2/4}
+    .toolbar{position:static}
+    .toolbar input[type=text]{width:100%}
+  }
+  @media(max-width:600px){
+    main{padding:var(--sp-3)}
+    header{padding:var(--sp-2) var(--sp-3)}
+    .steps{width:100%;margin-left:0}
+    .steps button{flex:1;justify-content:center;padding:0 var(--sp-2)}
+    .langcards{grid-template-columns:1fr}
+  }
+  /* 가로 스크롤은 절대 페이지 전체에 생기지 않게 */
+  #table,#alignList{overflow-x:auto}
+
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{transition-duration:1ms !important;animation-duration:1ms !important}
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<div class="warnbar" id="warnbar" role="alert"></div>
+
+<header>
+  <h1>이벤트 페이지 <span>다국어 치환 툴</span></h1>
+  <nav class="steps" aria-label="작업 단계">
+    <button data-go="1" class="on" aria-current="step">1. 원본 소스</button>
+    <button data-go="2">2. 번역 테이블</button>
+    <button data-go="3">3. 결과 생성</button>
+    <button data-go="4">프로젝트</button>
+  </nav>
+</header>
+
+<main id="main">
+
+<!-- ===== STEP 1 ===== -->
+<section class="step on" id="s1">
+  <details class="help">
+    <summary>사용 순서 (처음이면 열어보세요)</summary>
+    <ol>
+      <li><b>한국어 원본 소스 붙여넣기</b> → [한국어 추출] 클릭</li>
+      <li><b>번역 테이블</b> 탭 → [번역용 엑셀 받기] → 번역 담당자에게 그 파일을 전달</li>
+      <li>담당자는 자기 <b>언어 열만</b> 채운다 — ID·원문 열은 시트 보호로 잠겨 있고, 첫 시트에 작업 안내가 들어 있습니다</li>
+      <li>받은 표를 <b>[번역된 엑셀 적용]</b>으로 넣으면 ID·원문 대조로 <b>EN·DE·FR·JP가 한 번에</b> 제자리로 들어갑니다</li>
+      <li>적용 직후 <b>[검수 필요만]</b>으로 한글 잔존·숫자 누락 같은 사고를 한 번 훑어봅니다</li>
+      <li><b>결과 생성</b> 탭 → [전체 언어 생성]으로 4개 언어 txt를 zip 하나로 받습니다. 마크업·인라인스타일은 원본 그대로 보존됩니다.</li>
+      <li>작업물은 브라우저에 자동 저장되며, <b>프로젝트</b> 탭에서 JSON으로 백업할 수 있습니다.</li>
+    </ol>
+    <p class="hint" style="margin:.8rem 0 0;border-top:1px solid var(--line);padding-top:.6rem">
+      <b style="color:var(--warn)">이 PC의 엑셀 주의사항</b> — 회사 M365 정책이 저장하는 모든 xlsx에 암호화를 씌웁니다.
+      번역을 <b>되돌릴 때</b>는 엑셀에서 <b>전체 복사 → 붙여넣기</b>, 또는 <b>CSV UTF-8로 저장</b> 후 불러오세요. (템플릿을 받는 방향은 문제 없음)
+    </p>
+  </details>
+
+  <div class="card">
+    <h2><label for="src">원본 소스코드</label> <small>한국어 원본 HTML을 붙여넣거나 파일을 선택하세요</small></h2>
+    <textarea id="src" rows="16" placeholder="&lt;!-- EDITABLE: 이벤트기간 --&gt;&#10;&lt;div style=&quot;...&quot;&gt; ... 여기에 원본 HTML 전체를 붙여넣으세요"></textarea>
+    <div class="row">
+      <div class="fld"><span class="lb"><label for="file">파일에서 불러오기</label></span>
+        <input type="file" id="file" accept=".txt,.html,.htm" style="width:auto" /></div>
+      <div class="fld"><span class="lb"><label for="enc">파일 인코딩</label></span>
+        <select id="enc" style="width:auto"><option value="utf-8">UTF-8</option><option value="euc-kr">EUC-KR (ANSI)</option></select></div>
+      <button class="btn pri" id="doExtract">한국어 추출 →</button>
+      <span class="hint" id="srcInfo" role="status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>추출 옵션</h2>
+    <div class="row">
+      <label class="ck"><input type="checkbox" id="optAttr" checked /> 이미지 alt / title 속성도 추출</label>
+      <label class="ck"><input type="checkbox" id="optSync" checked /> 동일 원문 자동 동기화 (같은 문구 한 번만 번역)</label>
+      <label class="ck"><input type="checkbox" id="optEsc" /> 번역문 특수문자 자동 이스케이프 (&amp; → &amp;amp;)</label>
+    </div>
+    <p class="hint" style="margin:var(--sp-3) 0 0">
+      · 태그·스타일·주석·공백은 <b>단 1바이트도 건드리지 않습니다.</b> 텍스트 위치만 기억했다가 그 자리만 교체합니다.<br />
+      · <code>&lt;style&gt;</code>·<code>&lt;script&gt;</code> 내부, HTML 주석, 기호/숫자만 있는 조각은 자동 제외됩니다.<br />
+      · <span class="chip p">지역수정</span> = 형광(#ff11ff) 표시 안쪽 → 날짜·시간대처럼 지역별로 값 자체를 바꿔야 하는 구간<br />
+      · <span class="chip r">삭제표시</span> = 취소선+#bc0c0c 표시 안쪽 → 타 지역 반출 시 제거 검토 대상
+    </p>
+  </div>
+</section>
+
+<!-- ===== STEP 2 ===== -->
+<section class="step" id="s2">
+  <div class="card">
+    <h2 class="sr-only">언어별 진행 현황</h2>
+    <div class="langcards" id="langcards" role="group" aria-label="언어 선택"></div>
+    <div class="row">
+      <span class="hint" id="stat" role="status">—</span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card step-a">
+      <h2>① 번역용 엑셀 내보내기 <small>번역 담당자에게 이 파일을 전달</small></h2>
+      <div class="row tight">
+        <button class="btn pri" id="expXlsx">번역용 엑셀 받기 (.xlsx)</button>
+        <label class="sr-only" for="xlScope">내보낼 언어 범위</label>
+        <select id="xlScope" style="width:auto">
+          <option value="all">전 언어 열 한 파일로 (EN·DE·FR·JP)</option>
+          <option value="cur">현재 언어 열만</option>
+        </select>
+        <label class="ck"><input type="checkbox" id="expOnlyEmpty" /> 미번역만</label>
+      </div>
+      <p class="hint" style="margin:var(--sp-3) 0 0">
+        <b>「번역 안내」 시트</b>(작업 방법·금지 사항·범례)와 <b>「번역」 시트</b> 두 장으로 만들어집니다.<br />
+        번역 시트는 <code>ID · 구역 · 표시 · 원문(KR) · 글자수 · 유지요소 · 문맥</code> 뒤에 언어 열이 붙고,
+        <b style="color:var(--acc2)">언어 열만 편집 가능하도록 잠겨</b> 나갑니다. ID·원문이 지켜져야 되돌릴 때 제자리를 찾습니다.<br />
+        지역수정 행은 <span class="chip p">보라</span>, 삭제표시 행은 <span class="chip r">분홍</span> 배경으로 구분됩니다.
+      </p>
+      <details style="margin-top:var(--sp-3)">
+        <summary class="hint" style="cursor:pointer">다른 형식 (TSV / CSV / JSON)</summary>
+        <div class="row">
+          <button class="btn gh" id="expTsv">TSV 복사</button>
+          <button class="btn gh" id="expCsv">CSV 다운로드</button>
+          <button class="btn gh" id="expJson">JSON 다운로드</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="card step-a">
+      <h2>② 번역된 엑셀 적용 <small>EN·DE·FR·JP가 한 번에 들어갑니다</small></h2>
+      <div class="row tight">
+        <div class="fld"><span class="lb"><label for="xlFile">번역된 파일 선택 (.xlsx / .csv)</label></span>
+          <input type="file" id="xlFile" accept=".xlsx,.csv,.tsv,.txt" style="width:auto" /></div>
+        <button class="btn pri" id="doXlsx">적용</button>
+        <button class="btn gh" id="clearLang">현재 언어 비우기</button>
+      </div>
+      <p class="hint" style="margin:var(--sp-3) 0 0">
+        <b style="color:var(--warn)">⚠ 회사 M365 정책이 저장 시 엑셀을 암호화합니다.</b> 번역 후 되돌릴 때는 아래 둘 중 하나를 쓰세요.<br />
+        <b>① 「번역」 시트에서 전체 선택(Ctrl+A) → 복사 → 아래 붙여넣기 칸</b> (가장 간단, 파일 저장 자체가 없음)<br />
+        <b>② 「번역」 시트를 선택한 채 다른 이름으로 저장 → CSV UTF-8(*.csv)</b> → 위에서 그 파일 선택<br />
+        CSV는 <b>현재 보고 있는 시트 한 장만</b> 저장되므로, 안내 시트가 선택된 상태로 저장하지 않도록 주의하세요.
+      </p>
+      <div id="xlReport" style="margin-top:var(--sp-3)" role="status"></div>
+      <details style="margin-top:var(--sp-3)">
+        <summary class="hint" style="cursor:pointer">엑셀을 못 쓸 때 — 붙여넣기로 넣기 (TSV / CSV / JSON / 자동 정렬)</summary>
+        <p class="hint" style="margin:var(--sp-2) 0 0">정식 경로는 위의 엑셀 왕복입니다. 아래는 표 형식이 깨졌을 때만 쓰세요.</p>
+        <label class="sr-only" for="impBox">붙여넣기 입력란</label>
+        <textarea id="impBox" rows="4" placeholder="엑셀에서 복사한 표 / CSV / JSON 을 그대로 붙여넣으세요" style="margin-top:var(--sp-2)"></textarea>
+        <div class="row">
+          <label class="sr-only" for="impMode">붙여넣기 해석 방식</label>
+          <select id="impMode" style="width:auto">
+            <option value="auto">자동 감지</option>
+            <option value="id">ID 기준</option>
+            <option value="src">원문 기준</option>
+            <option value="order">순서 기준 (한 줄 = 한 항목)</option>
+            <option value="blob">덩어리 붙여넣기 (자동 정렬)</option>
+          </select>
+          <label class="sr-only" for="impFile">붙여넣기 대신 파일 선택</label>
+          <input type="file" id="impFile" accept=".tsv,.csv,.txt,.json,.html" style="width:auto" />
+          <button class="btn" id="doImport">적용</button>
+        </div>
+        <div class="row" style="margin-top:var(--sp-2)">
+          <label class="ck"><input type="checkbox" id="alSent" checked /> 긴 줄은 문장 단위로 쪼개기</label>
+          <label class="ck"><input type="checkbox" id="alOnlyEmpty" /> 미번역 항목에만 정렬</label>
+        </div>
+        <p class="hint" style="margin:var(--sp-3) 0 0" id="impInfo" role="status">자동 정렬은 <b>추측</b>이라 100%가 아닙니다. 가급적 위의 엑셀 경로를 쓰세요.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="card" id="alignCard" style="display:none;border-color:var(--pur)">
+    <h2 style="border-left-color:var(--pur)">자동 정렬 검토 <small>적용 전에 반드시 확인하세요 — 여기서 고친 내용이 그대로 들어갑니다</small></h2>
+    <div class="row tight">
+      <button class="btn pri" id="alApply">이대로 적용</button>
+      <button class="btn gh" id="alCancel">취소</button>
+      <label class="ck"><input type="checkbox" id="alHideEmpty" /> 매칭된 항목만 보기</label>
+      <span class="hint" id="alInfo"></span>
+    </div>
+    <p class="hint" style="margin:var(--sp-3) 0 var(--sp-2)">
+      <span class="dot hi"></span> 확실 &nbsp; <span class="dot mid"></span> 보통 &nbsp; <span class="dot lo"></span> 불확실 — <b>불확실 항목부터 확인</b>하세요.
+      한 줄씩 밀린 경우 <b>▼</b>(이 행부터 아래로 밀기) / <b>▲</b>(위로 당기기)로 한 번에 교정됩니다.
+    </p>
+    <div id="alignList" style="max-height:640px;overflow-y:auto;padding-right:.4rem"></div>
+    <div id="alLeft" style="margin-top:var(--sp-3)"></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="q" placeholder="원문/번역 검색…" aria-label="원문 또는 번역 검색" />
+    <label class="ck"><input type="checkbox" id="fEmpty" /> 미번역만</label>
+    <label class="ck"><input type="checkbox" id="fFlag" /> 지역수정·삭제표시만</label>
+    <label class="ck"><input type="checkbox" id="fQa" /> 검수 필요만</label>
+    <button class="btn gh" id="fillSame">원문 그대로 채우기(빈칸)</button>
+    <span class="hint" id="cnt" role="status"></span>
+  </div>
+  <div class="qabar" id="qabar"></div>
+  <div class="thead"><div>ID</div><div>원문 (KR)</div><div>번역</div></div>
+  <div id="table"></div>
+</section>
+
+<!-- ===== STEP 3 ===== -->
+<section class="step" id="s3">
+  <div class="card">
+    <h2><label for="rules">URL / 문자열 후처리</label> <small id="rulesFor">—</small></h2>
+    <div class="langbar" id="langbar3" role="group" aria-label="규칙을 편집할 언어"></div>
+    <textarea id="rules" rows="4" placeholder="/KR/Upload/ => /NAEU/Upload/&#10;/Console/ko-KR/ => /Console/en-US/"></textarea>
+    <p class="hint" style="margin:var(--sp-2) 0 0">한 줄에 하나씩 <code>찾을문자열 =&gt; 바꿀문자열</code>. 이미지 CDN 지역 경로나 고객센터 링크를 언어별로 교체합니다. (결과 생성 시 마지막 단계에 적용)<br />
+    <b style="color:var(--warn)">규칙은 위에서 선택한 언어에만 저장됩니다.</b> 언어를 바꿔가며 각각 넣어주세요.</p>
+  </div>
+
+  <div class="card" style="border-color:rgba(78,203,207,.45)">
+    <h2>전체 언어 한 번에 <small>EN·DE·FR·JP 결과를 txt 4개로 만들어 zip 하나로</small></h2>
+    <div class="row tight">
+      <button class="btn pri" id="buildAll">전체 언어 생성 (.zip)</button>
+      <div class="fld"><span class="lb"><label for="fileBase">파일명 접두어</label></span>
+        <input type="text" id="fileBase" placeholder="예: 0801_출석이벤트" style="width:260px" /></div>
+      <span class="hint" id="allInfo" role="status"></span>
+    </div>
+    <div id="allReport" style="margin-top:var(--sp-3)" role="status"></div>
+  </div>
+
+  <div class="card">
+    <h2><label for="out">현재 언어 결과</label> <small>내용을 직접 확인하거나 미리보기할 때</small></h2>
+    <div class="row tight">
+      <button class="btn pri" id="doBuild">현재 언어 생성</button>
+      <button class="btn" id="copyOut">복사</button>
+      <button class="btn" id="dlOut">txt 다운로드</button>
+      <button class="btn gh" id="doPreview">미리보기 갱신</button>
+      <span class="hint" id="buildInfo" role="status"></span>
+    </div>
+    <textarea id="out" rows="14" spellcheck="false" style="margin-top:var(--sp-3)"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>미리보기</h2>
+    <iframe id="prev" sandbox=""></iframe>
+  </div>
+</section>
+
+<!-- ===== STEP 4 ===== -->
+<section class="step" id="s4">
+  <div class="card">
+    <h2>언어 관리 <small>기본 구성은 EN 영어 · DE 독일어 · FR 프랑스어 · JP 일본어</small></h2>
+    <div class="row tight">
+      <div class="fld"><span class="lb"><label for="newLang">추가할 언어 코드</label></span>
+      <input type="text" id="newLang" placeholder="예: ZH-TW, TH, RU" style="width:220px" /></div>
+      <button class="btn" id="addLang">언어 추가</button>
+      <button class="btn gh" id="delLang">현재 언어 삭제</button>
+    </div>
+    <div id="extraLangBox" style="margin-top:var(--sp-3)"></div>
+    <p class="hint" style="margin:var(--sp-3) 0 0">번역용 엑셀에 없던 언어 열이 들어 있으면 적용할 때 자동으로 추가됩니다.</p>
+  </div>
+  <div class="card">
+    <h2>프로젝트 저장 / 불러오기 <small>원본 + 모든 언어 번역을 한 파일로</small></h2>
+    <div class="row tight">
+      <button class="btn pri" id="saveProj">프로젝트 저장 (.json)</button>
+      <div class="fld"><span class="lb"><label for="loadProj">프로젝트 파일 불러오기</label></span>
+      <input type="file" id="loadProj" accept=".json" style="width:auto" /></div>
+      <button class="btn gh" id="resetAll">전체 초기화</button>
+    </div>
+    <p class="hint" style="margin:var(--sp-3) 0 0">브라우저에도 자동 저장되지만, 캐시 삭제 시 사라집니다. 중요 작업은 JSON으로 백업하세요.</p>
+  </div>
+</section>
+
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ 상태 ============ */
+var BASE_LANGS = ["EN","DE","FR","JP"];
+var LANGNAME = {EN:"영어", DE:"독일어", FR:"프랑스어", JP:"일본어", JA:"일본어", "ZH-TW":"번체중국어", TH:"태국어", RU:"러시아어", ES:"스페인어", ID:"인도네시아어", VI:"베트남어", PT:"포르투갈어"};
+
+var SRC = "";
+var SEGS = [];
+var LANGS = BASE_LANGS.slice();
+var CUR = "EN";
+var RULES = {};          // lang -> 후처리 규칙 텍스트
+var OPTS = {attr:true, sync:true, esc:false};
+var FBASE = "";          // 결과 파일명 접두어
+var KEY = "pa_event_localizer_v1";
+
+function langLabel(L){ return LANGNAME[L] ? (L + " " + LANGNAME[L]) : L; }
+
+var $ = function(s){ return document.querySelector(s); };
+var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+function toast(msg){
+  var t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove("on");},1600);
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* ============ 추출기 ============ */
+var VOID = {area:1,base:1,br:1,col:1,embed:1,hr:1,img:1,input:1,link:1,meta:1,param:1,source:1,track:1,wbr:1};
+var RAWT = {script:1,style:1,textarea:1};
+var BLOCK = {p:1,h1:1,h2:1,h3:1,h4:1,h5:1,h6:1,li:1,td:1,th:1,summary:1,div:1,dt:1,dd:1,figcaption:1,caption:1,button:1,a:1,strong:1,label:1,span:0};
+var ATTRS = /\s(alt|title|placeholder|aria-label)\s*=\s*("([^"]*)"|'([^']*)')/gi;
+
+function hasLetters(s){
+  var t = String(s).replace(/&[a-zA-Z#0-9]+;/g," ");
+  try { return /\p{L}/u.test(t); } catch(e){ return /[A-Za-zㄱ-힝぀-ヿ一-鿿Ѐ-ӿ฀-๿]/.test(t); }
+}
+function hasAlnum(s){
+  return /[0-9A-Za-z]/.test(String(s).replace(/&[a-zA-Z#0-9]+;/g," "));
+}
+function stripTags(s){
+  return s.replace(/<!--[\s\S]*?-->/g,"")
+          .replace(/<[^>]*>/g," ")
+          .replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"')
+          .replace(/\s+/g," ").trim();
+}
+
+function extract(src, opts){
+  var segs = [], stack = [], section = "", gid = 0, groups = {};
+  var i = 0, n = src.length;
+
+  function flags(){
+    var f = [];
+    for (var k=0;k<stack.length;k++){
+      var t = stack[k].tag;
+      if (t.indexOf("ff11ff") >= 0 && f.indexOf("region") < 0) f.push("region");
+      if (t.indexOf("bc0c0c") >= 0 && f.indexOf("strike") < 0) f.push("strike");
+    }
+    return f;
+  }
+  function pushText(s,e){
+    if (e <= s) return;
+    var raw = src.slice(s,e);
+    var m = /^([\s\S]*?)(\S[\s\S]*\S|\S)([\s\S]*?)$/.exec(raw);
+    if (!m) return;
+    var core = m[2], f = flags();
+    // 글자가 없어도 형광(#ff11ff)·취소선 표시 안쪽이면 지역별 수정 대상이므로 살린다 (예: "7~8", "1", "07:00")
+    if (!hasLetters(core) && !(f.length && hasAlnum(core))) return;
+    segs.push({type:"text", start:s+m[1].length, end:s+m[1].length+core.length,
+               original:core, section:section, flags:f, gid:-1});
+  }
+  function pushAttrs(tagStr, base){
+    ATTRS.lastIndex = 0; var m;
+    while ((m = ATTRS.exec(tagStr))){
+      var val = (m[3] !== undefined) ? m[3] : m[4];
+      if (!val || !hasLetters(val)) continue;
+      var vs = base + m.index + m[0].indexOf(m[2]) + 1;
+      segs.push({type:"attr", attr:m[1].toLowerCase(), start:vs, end:vs+val.length,
+                 original:val, section:section, flags:flags(), gid:-1});
+    }
+  }
+  function closeFrame(f, endIdx){
+    if (!BLOCK[f.name]) return;
+    var mine = [];
+    for (var k=f.segStart;k<segs.length;k++) if (segs[k].gid === -1) mine.push(segs[k]);
+    if (!mine.length) return;
+    var ctx = stripTags(src.slice(f.contentStart, endIdx));
+    if (ctx.length > 240) ctx = ctx.slice(0,240) + "…";
+    gid++; groups[gid] = ctx;
+    for (var j=0;j<mine.length;j++) mine[j].gid = gid;
+  }
+
+  while (i < n){
+    var lt = src.indexOf("<", i);
+    if (lt < 0){ pushText(i, n); break; }
+    if (lt > i) pushText(i, lt);
+
+    if (src.substr(lt,4) === "<!--"){
+      var ce = src.indexOf("-->", lt);
+      var stop = ce < 0 ? n : ce + 3;
+      var sm = /SECTION:\s*([^\s]+)\s+(START|END)/.exec(src.slice(lt, stop));
+      if (sm) section = (sm[2] === "START") ? sm[1] : "";
+      i = stop; continue;
+    }
+
+    var j = lt+1, q = null;
+    while (j < n){
+      var c = src.charAt(j);
+      if (q){ if (c === q) q = null; }
+      else if (c === '"' || c === "'") q = c;
+      else if (c === ">") break;
+      j++;
+    }
+    if (j >= n){ break; }
+    var tagStr = src.slice(lt, j+1);
+    var closing = tagStr.charAt(1) === "/";
+    var nm = /^<\/?\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagStr);
+    var name = nm ? nm[1].toLowerCase() : "";
+    var selfClose = /\/\s*>$/.test(tagStr) || !!VOID[name];
+
+    if (!closing){
+      if (opts.attr) pushAttrs(tagStr, lt);
+      if (name && !selfClose) stack.push({name:name, tag:tagStr, segStart:segs.length, contentStart:j+1});
+    } else if (name){
+      var k2 = stack.length-1;
+      while (k2 >= 0 && stack[k2].name !== name) k2--;
+      if (k2 >= 0){
+        for (var t2=stack.length-1;t2>=k2;t2--) closeFrame(stack[t2], lt);
+        stack.length = k2;
+      }
+    }
+    i = j+1;
+
+    if (RAWT[name] && !closing && !selfClose){
+      var close = src.toLowerCase().indexOf("</"+name, i);
+      i = (close < 0) ? n : close;
+    }
+  }
+  for (var z=stack.length-1;z>=0;z--) closeFrame(stack[z], n);
+
+  segs.sort(function(a,b){ return a.start - b.start; });
+  for (var x=0;x<segs.length;x++){ segs[x].id = x+1; segs[x].ctx = groups[segs[x].gid] || ""; segs[x].tr = {}; }
+  return segs;
+}
+
+/* ============ 재조립 ============ */
+function escText(s){
+  return s.replace(/&(?!(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function build(lang){
+  var list = [], i;
+  for (i=0;i<SEGS.length;i++){
+    var v = SEGS[i].tr[lang];
+    if (v !== undefined && v !== null && String(v).trim() !== "") list.push(SEGS[i]);
+  }
+  list.sort(function(a,b){ return b.start - a.start; });
+  var out = SRC;
+  for (i=0;i<list.length;i++){
+    var s = list[i], t = String(s.tr[lang]);
+    if (s.type === "attr") t = t.replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\r?\n/g," ");
+    else if (OPTS.esc) t = escText(t);
+    out = out.slice(0, s.start) + t + out.slice(s.end);
+  }
+  var rules = (RULES[lang] || "").split(/\r?\n/);
+  for (i=0;i<rules.length;i++){
+    var r = rules[i]; if (r.indexOf("=>") < 0) continue;
+    var p = r.split("=>"); var a = p[0].trim(), b = p.slice(1).join("=>").trim();
+    if (!a) continue;
+    out = out.split(a).join(b);
+  }
+  return out;
+}
+
+/* ============ XLSX 생성 / 읽기 (외부 라이브러리 없음) ============ */
+function u8(s){ return new TextEncoder().encode(s); }
+var CRCT = (function(){
+  var t = new Uint32Array(256);
+  for (var i=0;i<256;i++){ var c=i; for (var k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[i]=c>>>0; }
+  return t;
+})();
+function crc32(b){
+  var c = 0xFFFFFFFF;
+  for (var i=0;i<b.length;i++) c = CRCT[(c ^ b[i]) & 0xFF] ^ (c>>>8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zip(files){                       // [{name, data:Uint8Array}] -> Uint8Array (무압축 STORE)
+  var parts = [], cds = [], off = 0, i, total = 0;
+  for (i=0;i<files.length;i++){
+    var nm = u8(files[i].name), d = files[i].data, crc = crc32(d);
+    var lh = new Uint8Array(30 + nm.length), v = new DataView(lh.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+    v.setUint16(8, 0, true); v.setUint16(10, 0, true); v.setUint16(12, 0x2821, true);
+    v.setUint32(14, crc, true); v.setUint32(18, d.length, true); v.setUint32(22, d.length, true);
+    v.setUint16(26, nm.length, true); v.setUint16(28, 0, true);
+    lh.set(nm, 30);
+    var ce = new Uint8Array(46 + nm.length), w = new DataView(ce.buffer);
+    w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x0800, true);
+    w.setUint16(10, 0, true); w.setUint16(12, 0, true); w.setUint16(14, 0x2821, true);
+    w.setUint32(16, crc, true); w.setUint32(20, d.length, true); w.setUint32(24, d.length, true);
+    w.setUint16(28, nm.length, true); w.setUint32(42, off, true);
+    ce.set(nm, 46);
+    parts.push(lh, d); cds.push(ce);
+    off += lh.length + d.length;
+  }
+  var cdSize = 0;
+  for (i=0;i<cds.length;i++) cdSize += cds[i].length;
+  var eo = new Uint8Array(22), e = new DataView(eo.buffer);
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  var all = parts.concat(cds); all.push(eo);
+  for (i=0;i<all.length;i++) total += all[i].length;
+  var out = new Uint8Array(total), p = 0;
+  for (i=0;i<all.length;i++){ out.set(all[i], p); p += all[i].length; }
+  return out;
+}
+function unzipEntries(buf){                // ArrayBuffer -> [{name, method, data:Uint8Array}]
+  var b = new Uint8Array(buf), v = new DataView(buf), i, eo = -1;
+  for (i = b.length - 22; i >= 0 && i > b.length - 65558; i--) if (v.getUint32(i, true) === 0x06054b50){ eo = i; break; }
+  if (eo < 0) throw new Error("ZIP 형식이 아닙니다");
+  var cnt = v.getUint16(eo + 10, true), p = v.getUint32(eo + 16, true), out = [];
+  for (i=0;i<cnt;i++){
+    if (v.getUint32(p, true) !== 0x02014b50) break;
+    var method = v.getUint16(p + 10, true), csize = v.getUint32(p + 20, true);
+    var nlen = v.getUint16(p + 28, true), elen = v.getUint16(p + 30, true), clen = v.getUint16(p + 32, true);
+    var lo = v.getUint32(p + 42, true);
+    var name = new TextDecoder().decode(b.subarray(p + 46, p + 46 + nlen));
+    var lnl = v.getUint16(lo + 26, true), lel = v.getUint16(lo + 28, true);
+    var ds = lo + 30 + lnl + lel;
+    out.push({name:name, method:method, data:b.subarray(ds, ds + csize)});
+    p += 46 + nlen + elen + clen;
+  }
+  return out;
+}
+function inflateRaw(u){
+  if (typeof DecompressionStream === "undefined") return Promise.reject(new Error("이 브라우저는 압축 해제를 지원하지 않습니다 (크롬/엣지를 쓰세요)"));
+  var ds = new DecompressionStream("deflate-raw");
+  var rs = new Response(new Blob([u]).stream().pipeThrough(ds));
+  return rs.arrayBuffer().then(function(a){ return new Uint8Array(a); });
+}
+function unzip(buf){                       // -> Promise<{name: string}>
+  var ents = unzipEntries(buf), map = {}, jobs = [];
+  ents.forEach(function(e){
+    if (e.method === 0){ map[e.name] = new TextDecoder().decode(e.data); }
+    else if (e.method === 8){ jobs.push(inflateRaw(e.data).then(function(d){ map[e.name] = new TextDecoder().decode(d); })); }
+  });
+  return Promise.all(jobs).then(function(){ return map; });
+}
+
+function xe(s){                            // XML 이스케이프 (+ 엑셀이 거부하는 제어문자 제거)
+  return String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function xu(s){
+  return String(s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'")
+    .replace(/&#(\d+);/g, function(_,d){ return String.fromCharCode(+d); })
+    .replace(/&#x([0-9a-fA-F]+);/g, function(_,h){ return String.fromCharCode(parseInt(h,16)); })
+    .replace(/&amp;/g,"&");
+}
+function colL(n){ var s=""; while(n>0){ var m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
+
+var XL_FIXED = ["ID","구역","표시","원문(KR)","글자수","유지요소","문맥"];
+var XL_SHEET = "번역";
+
+/* 번역해도 그대로 남아야 하는 것들 — 숫자·HTML 엔티티·라틴 토큰 */
+function keepTokens(s){
+  var t = String(s), seen = {}, out = [], i;
+  var ents = t.match(/&[a-zA-Z][a-zA-Z0-9]*;|&#[0-9]+;/g) || [];
+  var rest = t.replace(/&[a-zA-Z][a-zA-Z0-9]*;|&#[0-9]+;/g, " ");  // 엔티티 속 글자가 다시 잡히지 않게
+  var pools = [ ents,
+                rest.match(/\d+(?:[.,:]\d+)*%?/g) || [],
+                rest.match(/[A-Za-z][A-Za-z0-9+]+/g) || [] ];
+  for (i=0;i<pools.length;i++) for (var j=0;j<pools[i].length;j++){
+    var v = pools[i][j];
+    if (!seen[v]){ seen[v] = 1; out.push(v); }
+  }
+  return out;
+}
+
+/* 스타일 인덱스
+   0 기본 · 1 헤더(고정열) · 2 헤더(언어열) · 3 고정열 · 4 ID/글자수(가운데)
+   5 언어열(편집) · 6 고정열-지역수정 · 7 고정열-삭제표시 · 8 언어열-지역수정 · 9 언어열-삭제표시
+   10 안내-제목 · 11 안내-소제목 · 12 안내-본문 · 13 안내-흐린글씨 */
+var XL_STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+  + '<fonts count="5">'
+  +   '<font><sz val="10"/><name val="맑은 고딕"/></font>'
+  +   '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font>'
+  +   '<font><b/><sz val="16"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>'
+  +   '<font><b/><sz val="11"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>'
+  +   '<font><sz val="10"/><color rgb="FF7F7F7F"/><name val="맑은 고딕"/></font>'
+  + '</fonts>'
+  + '<fills count="7">'
+  +   '<fill><patternFill patternType="none"/></fill>'
+  +   '<fill><patternFill patternType="gray125"/></fill>'
+  +   '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill>'
+  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>'
+  +   '<fill><patternFill patternType="solid"><fgColor rgb="FF1E7A5A"/><bgColor indexed="64"/></patternFill></fill>'
+  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFF3E8FF"/><bgColor indexed="64"/></patternFill></fill>'
+  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFFFE3E6"/><bgColor indexed="64"/></patternFill></fill>'
+  + '</fills>'
+  + '<borders count="2"><border/>'
+  +   '<border><left style="thin"><color rgb="FFD9D9D9"/></left><right style="thin"><color rgb="FFD9D9D9"/></right>'
+  +   '<top style="thin"><color rgb="FFD9D9D9"/></top><bottom style="thin"><color rgb="FFD9D9D9"/></bottom></border>'
+  + '</borders>'
+  + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+  + '<cellXfs count="14">'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/>'
+  + '<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="1" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'
+  + '<xf xfId="0" numFmtId="0" fontId="3" fillId="0" borderId="0" applyFont="1"/>'
+  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf xfId="0" numFmtId="0" fontId="4" fillId="0" borderId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+function xlCell(ref, val, style){
+  if (typeof val === "number") return '<c r="'+ref+'" s="'+style+'"><v>'+val+'</v></c>';
+  if (val === "" || val == null) return '<c r="'+ref+'" s="'+style+'"/>';
+  return '<c r="'+ref+'" s="'+style+'" t="inlineStr"><is><t xml:space="preserve">'+xe(val)+'</t></is></c>';
+}
+/* rows: [[{v,s}, ...], ...] */
+function xlSheetData(rows){
+  var sd = "", i, j;
+  for (i=0;i<rows.length;i++){
+    if (!rows[i]){ continue; }
+    sd += '<row r="'+(i+1)+'"'+(i === 0 ? ' ht="30" customHeight="1"' : '')+'>';
+    for (j=0;j<rows[i].length;j++){
+      var c = rows[i][j];
+      if (c == null) continue;
+      sd += xlCell(colL(j+1)+(i+1), c.v, c.s);
+    }
+    sd += '</row>';
+  }
+  return sd;
+}
+
+/* 시트① 번역 안내 — total: 전체 항목 수, counts: 언어별 번역 완료 수 */
+function guideSheet(langs, counts, total, sheetRows){
+  var L = [], i;
+  function row(a, b, sa, sb){ L.push([{v:a, s:(sa === undefined ? 12 : sa)}, {v:b === undefined ? "" : b, s:(sb === undefined ? 12 : sb)}]); }
+  function gap(){ L.push([]); }
+  function head(t){ row(t, "", 11, 12); }
+
+  row("번역 작업 안내", "", 10, 12);
+  row("이벤트 페이지 다국어 번역 · 아래 「번역」 시트 탭에서 작업합니다", "", 13, 12);
+  gap();
+
+  head("■ 작업 방법");
+  row("1", "아래쪽 「" + XL_SHEET + "」 시트 탭으로 이동합니다.");
+  row("2", "본인이 맡은 언어 열(" + langs.join(" / ") + ")만 채웁니다. 다른 언어 열은 비워두셔도 됩니다.");
+  row("3", "다 채우면 저장해서 회신해 주세요. 파일명은 바꾸셔도 괜찮습니다.");
+  gap();
+
+  head("■ 반드시 지켜주세요");
+  row("×", "ID · 원문(KR) 열을 수정하거나 지우지 마세요. 이 두 값을 대조해서 번역을 원래 자리로 되돌립니다. 값이 바뀌면 그 행의 번역은 반영되지 않습니다. (실수 방지를 위해 언어 열 외에는 잠가 두었습니다)");
+  row("×", "행을 추가·삭제하거나 순서를 바꾸지 마세요. 필터·정렬은 보시는 동안 쓰셔도 되지만, 그 상태로 저장하지는 말아주세요.");
+  row("×", "원문 안의 숫자·기호를 임의로 바꾸지 마세요. 무엇을 그대로 둬야 하는지 '유지요소' 열에 정리해 두었습니다.");
+  row("○", "빈 칸으로 두면 그 항목은 한국어가 그대로 노출됩니다. 번역이 필요 없는 항목이면 원문을 그대로 복사해 넣어주세요.");
+  gap();
+
+  head("■ 열 설명");
+  row("ID", "항목 고유번호. 수정 금지.");
+  row("구역", "페이지 안에서 이 문구가 속한 영역 이름.");
+  row("표시", "따로 확인이 필요한 항목 표시. 아래 범례를 봐주세요.");
+  row("원문(KR)", "번역할 한국어 원문. 수정 금지.");
+  row("글자수", "원문의 길이(공백 포함). 아래 '길이 주의' 참고.");
+  row("유지요소", "번역 후에도 원문 그대로 남아야 하는 숫자·기호·영문 토큰. 비어 있으면 신경 쓰지 않으셔도 됩니다.");
+  row("문맥", "이 문구가 들어있는 문단 전체. 앞뒤 맥락 파악용이며 번역 대상이 아닙니다.");
+  row(langs.join(" / "), "번역을 입력하는 칸. 이 칸들만 편집할 수 있습니다.");
+  gap();
+
+  head("■ 표시 범례");
+  row("지역수정 (보라색 행)", "날짜·시간대처럼 지역마다 값 자체가 달라지는 구간입니다. 그대로 옮기지 마시고 해당 지역 기준값으로 바꿔주세요.");
+  row("삭제표시 (분홍색 행)", "해당 지역에서는 빼야 할 수도 있는 내용입니다. 판단이 어려우면 일단 번역해 두고 회신하실 때 알려주세요.");
+  row("alt / title / placeholder", "이미지 설명이나 툴팁처럼 화면에 직접 보이지 않는 텍스트입니다. 번역은 필요합니다.");
+  gap();
+
+  head("■ 길이 주의");
+  row("", "독일어·프랑스어는 한국어 대비 최대 2배까지 길어집니다. 버튼·배너·탭처럼 폭이 정해진 자리에서 글자가 잘릴 수 있으니, 되도록 원문 글자수의 2배를 넘기지 말아주세요. 글자수가 15자 이하인 항목은 대부분 이런 짧은 UI 문구입니다.");
+  gap();
+
+  head("■ 엑셀 대신 CSV로 저장하실 경우");
+  row("", "CSV는 지금 보고 있는 시트 한 장만 저장됩니다. 반드시 「" + XL_SHEET + "」 시트를 선택한 상태에서 [다른 이름으로 저장 → CSV UTF-8]을 눌러주세요. 이 안내 시트가 선택된 채로 저장하면 번역 내용이 저장되지 않습니다.");
+  gap();
+
+  head("■ 현재 상태");
+  row("총 항목", total + "개" + (sheetRows !== total ? "  (이 파일에는 그중 " + sheetRows + "개만 담겨 있습니다)" : ""));
+  for (i=0;i<langs.length;i++){
+    var done = counts[langs[i]] || 0;
+    row(langLabel(langs[i]), "남은 항목 " + (total - done) + "개 / 전체 " + total + "개" + (total && done === total ? "  (완료)" : ""));
+  }
+  row("파일 생성", new Date().toLocaleString("ko-KR"), 13, 13);
+
+  var cols = '<col min="1" max="1" width="24" customWidth="1"/><col min="2" max="2" width="104" customWidth="1"/>';
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<dimension ref="A1:B'+L.length+'"/>'
+    + '<sheetViews><sheetView tabSelected="1" workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>'
+    + '<sheetFormatPr defaultRowHeight="15"/><cols>'+cols+'</cols>'
+    + '<sheetData>'+xlSheetData(L)+'</sheetData></worksheet>';
+}
+
+function xlsxBlob(langs, onlyEmpty){
+  var head = XL_FIXED.concat(langs.map(function(L){ return LANGNAME[L] ? (L + " (" + LANGNAME[L] + ")") : L; }));
+  var nFixed = XL_FIXED.length;
+  var rows = [], counts = {}, i, j;
+  for (j=0;j<langs.length;j++) counts[langs[j]] = 0;
+
+  for (i=0;i<SEGS.length;i++){
+    var s = SEGS[i], any = false;
+    for (j=0;j<langs.length;j++) if (s.tr[langs[j]] && String(s.tr[langs[j]]).trim()){ counts[langs[j]]++; any = true; }
+    if (onlyEmpty && any) continue;
+
+    var mark = [];
+    if (s.flags.indexOf("region") >= 0) mark.push("지역수정");
+    if (s.flags.indexOf("strike") >= 0) mark.push("삭제표시");
+    if (s.type === "attr") mark.push(s.attr);
+
+    var tone = (s.flags.indexOf("strike") >= 0) ? "strike" : (s.flags.indexOf("region") >= 0 ? "region" : "");
+    var r = {tone: tone, cells: [
+      s.id, s.section || "", mark.join("/"), s.original,
+      s.original.length, keepTokens(s.original).join(" · "),
+      (s.ctx && s.ctx !== s.original) ? s.ctx : ""
+    ]};
+    for (j=0;j<langs.length;j++) r.cells.push(s.tr[langs[j]] || "");
+    rows.push(r);
+  }
+
+  // 헤더 + 본문을 셀 배열로
+  var grid = [[]], ri;
+  for (j=0;j<head.length;j++) grid[0].push({v:head[j], s:(j < nFixed ? 1 : 2)});
+  for (ri=0;ri<rows.length;ri++){
+    var line = [], tone = rows[ri].tone;
+    for (j=0;j<rows[ri].cells.length;j++){
+      var fixed = j < nFixed, st;
+      if (tone === "region") st = fixed ? 6 : 8;
+      else if (tone === "strike") st = fixed ? 7 : 9;
+      else st = fixed ? 3 : 5;
+      if (fixed && (j === 0 || j === 4) && !tone) st = 4;   // ID·글자수는 가운데 정렬
+      line.push({v:rows[ri].cells[j], s:st});
+    }
+    grid.push(line);
+  }
+
+  var wid = [6,16,13,46,8,20,40], cols = "";
+  for (j=0;j<head.length;j++) cols += '<col min="'+(j+1)+'" max="'+(j+1)+'" width="'+(wid[j] || 46)+'" customWidth="1"/>';
+  var last = colL(head.length) + (rows.length + 1);
+
+  // 원문(D열)까지 틀고정 — 옆으로 스크롤해도 ID·원문이 남는다
+  var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<dimension ref="A1:'+last+'"/>'
+    + '<sheetViews><sheetView workbookViewId="0">'
+    + '<pane xSplit="4" ySplit="1" topLeftCell="E2" activePane="bottomRight" state="frozen"/>'
+    + '<selection pane="bottomRight" activeCell="'+colL(nFixed+1)+'2" sqref="'+colL(nFixed+1)+'2"/>'
+    + '</sheetView></sheetViews>'
+    + '<sheetFormatPr defaultRowHeight="15"/><cols>'+cols+'</cols>'
+    + '<sheetData>'+xlSheetData(grid)+'</sheetData>'
+    // 언어 열만 편집 가능. 비밀번호가 없으므로 [검토 > 시트 보호 해제]로 언제든 풀 수 있다.
+    + '<sheetProtection sheet="1" objects="1" scenarios="1" formatCells="0" formatColumns="0" formatRows="0" autoFilter="0" sort="0"/>'
+    + '<autoFilter ref="A1:'+last+'"/></worksheet>';
+
+  var files = [
+    {name:"[Content_Types].xml", data:u8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + '</Types>')},
+    {name:"_rels/.rels", data:u8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+      + '</Relationships>')},
+    {name:"xl/workbook.xml", data:u8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+      + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheets><sheet name="번역 안내" sheetId="1" r:id="rId1"/>'
+      + '<sheet name="'+xe(XL_SHEET)+'" sheetId="2" r:id="rId2"/></sheets></workbook>')},
+    {name:"xl/_rels/workbook.xml.rels", data:u8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
+      + '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      + '</Relationships>')},
+    {name:"xl/styles.xml", data:u8(XL_STYLES)},
+    {name:"xl/worksheets/sheet1.xml", data:u8(guideSheet(langs, counts, SEGS.length, rows.length))},
+    {name:"xl/worksheets/sheet2.xml", data:u8(sheet)}
+  ];
+  return {bytes: zip(files), rows: rows.length, cols: head};
+}
+
+function parseSheet(xml, shared){
+  var rows = [], rm = xml.match(/<row[\s\S]*?<\/row>|<row[^>]*\/>/g) || [];
+  for (var i=0;i<rm.length;i++){
+    var rr = /r="(\d+)"/.exec(rm[i]); var rn = rr ? +rr[1] : i+1;
+    var cm = rm[i].match(/<c[^>]*\/>|<c[\s\S]*?<\/c>/g) || [], row = [];
+    for (var j=0;j<cm.length;j++){
+      var c = cm[j];
+      var ref = /r="([A-Z]+)\d+"/.exec(c); if (!ref) continue;
+      var ci = 0, L = ref[1];
+      for (var k=0;k<L.length;k++) ci = ci*26 + (L.charCodeAt(k)-64);
+      var t = /t="([^"]+)"/.exec(c), val = "";
+      if (t && t[1] === "inlineStr"){
+        var tm = c.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || [];
+        for (var z=0;z<tm.length;z++) val += xu(tm[z].replace(/<t[^>]*>/,"").replace(/<\/t>/,""));
+      } else {
+        var vm = /<v[^>]*>([\s\S]*?)<\/v>/.exec(c);
+        if (vm){
+          if (t && t[1] === "s") val = shared[+vm[1]] || "";
+          else val = xu(vm[1]);
+        }
+      }
+      row[ci-1] = val;
+    }
+    rows[rn-1] = row;
+  }
+  for (var q=0;q<rows.length;q++) if (!rows[q]) rows[q] = [];
+  return rows;
+}
+function parseShared(xml){
+  var out = [], sm = xml.match(/<si>[\s\S]*?<\/si>|<si\/>/g) || [];
+  for (var i=0;i<sm.length;i++){
+    var tm = sm[i].match(/<t[^>]*>([\s\S]*?)<\/t>/g) || [], v = "";
+    for (var j=0;j<tm.length;j++) v += xu(tm[j].replace(/<t[^>]*>/,"").replace(/<\/t>/,""));
+    out.push(v);
+  }
+  return out;
+}
+function norm(s){ return String(s == null ? "" : s).replace(/\s+/g," ").trim(); }
+
+/* 언어 열 헤더 → 언어 코드.  "EN (영어)" → EN,  "번역(DE)" → DE,  "ZH-TW" → ZH-TW */
+function langFromHeader(h){
+  h = norm(h);
+  var m = /^번역\s*\(([^)]+)\)$/.exec(h);
+  if (m) return norm(m[1]).toUpperCase();
+  m = /^([A-Za-z][A-Za-z0-9_-]*)\s*(?:[(（].*)?$/.exec(h);
+  if (m) return m[1].toUpperCase();
+  return h.toUpperCase();
+}
+
+/* 워크북 안의 모든 워크시트를 {name, path}로. 통합문서 관계가 깨져 있어도 파일명으로 주워담는다. */
+function sheetList(map){
+  var wb = map["xl/workbook.xml"], rels = map["xl/_rels/workbook.xml.rels"], out = [], i, n;
+  if (wb && rels){
+    var sm = wb.match(/<sheet\b[^>]*\/?>/g) || [];
+    for (i=0;i<sm.length;i++){
+      var rid = /r:id="([^"]+)"/.exec(sm[i]); if (!rid) continue;
+      var tm = new RegExp('Id="' + rid[1] + '"[^>]*Target="([^"]+)"').exec(rels); if (!tm) continue;
+      var path = "xl/" + tm[1].replace(/^\/?xl\//,"").replace(/^\//,"");
+      var nm = /name="([^"]*)"/.exec(sm[i]);
+      if (map[path]) out.push({name: nm ? xu(nm[1]) : "", path: path});
+    }
+  }
+  for (n in map){
+    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(n)) continue;
+    var have = false;
+    for (i=0;i<out.length;i++) if (out[i].path === n) have = true;
+    if (!have) out.push({name:"", path:n});
+  }
+  return out;
+}
+
+/* 시트가 여러 장이므로 첫 시트를 무조건 읽으면 안 된다 (안내 시트를 번역표로 오인).
+   「번역」 시트를 먼저 시도하고, 안 되면 ID+원문 헤더가 잡히는 시트를 찾을 때까지 순회한다.
+   applyTable은 헤더 검증에 실패하면 아무것도 건드리지 않고 던지므로 재시도가 안전하다. */
+function applyXlsx(map){
+  var sheets = sheetList(map);
+  if (!sheets.length) throw new Error("워크시트를 찾지 못했습니다");
+  var shared = map["xl/sharedStrings.xml"] ? parseShared(map["xl/sharedStrings.xml"]) : [];
+
+  function rank(s){
+    if (s.name === XL_SHEET) return 0;
+    if (s.name.indexOf("안내") >= 0) return 2;
+    return 1;
+  }
+  sheets.sort(function(a,b){ return rank(a) - rank(b); });
+
+  var err = null;
+  for (var i=0;i<sheets.length;i++){
+    try { return applyTable(parseSheet(map[sheets[i].path], shared)); }
+    catch(e){ if (!err) err = e; }
+  }
+  throw err || new Error("번역 표를 찾지 못했습니다");
+}
+
+/* 구분자 텍스트(엑셀에서 CSV 저장 / 전체 복사 붙여넣기) -> 같은 검증 로직으로 */
+function applyDelimited(text){
+  text = String(text).replace(/^﻿/, "");
+  var rows, first = text.split(/\r?\n/)[0] || "";
+  if (first.indexOf("\t") >= 0){
+    rows = [];
+    var ls = text.replace(/\r\n/g,"\n").split("\n");
+    for (var i=0;i<ls.length;i++) rows.push(ls[i].split("\t"));
+  } else rows = parseCSV(text);
+  return applyTable(rows);
+}
+
+/* 표 -> 세그먼트. ID + 원문 이중 검증으로 잘못된 파일이 조용히 들어가는 걸 막는다. */
+function applyTable(rows){
+  // 헤더 행 찾기
+  var hr = -1, i, j;
+  for (i=0;i<Math.min(rows.length,20);i++){
+    var joined = rows[i].map(norm).join("|");
+    if (/(^|\|)ID(\||$)/i.test(joined) && joined.indexOf("원문") >= 0){ hr = i; break; }
+  }
+  if (hr < 0) throw new Error("헤더 행(ID / 원문)을 찾지 못했습니다. 템플릿 형식이 맞는지 확인하세요.");
+
+  var head = rows[hr].map(norm);
+  var cId = head.indexOf("ID"), cSrc = -1;
+  for (i=0;i<head.length;i++) if (head[i].indexOf("원문") === 0) cSrc = i;
+  if (cId < 0 || cSrc < 0) throw new Error("ID 또는 원문 열이 없습니다");
+
+  var langCols = [], seenLang = {};
+  for (i=0;i<head.length;i++){
+    if (i === cId || i === cSrc) continue;
+    var h = head[i];
+    if (!h || XL_FIXED.indexOf(h) >= 0) continue;
+    var lg = langFromHeader(h);
+    if (!lg || seenLang[lg]) continue;
+    seenLang[lg] = 1;
+    langCols.push({col:i, lang:lg});
+  }
+  if (!langCols.length) throw new Error("언어 열을 찾지 못했습니다");
+
+  var byId = {};
+  for (i=0;i<SEGS.length;i++) byId[SEGS[i].id] = SEGS[i];
+
+  var res = {applied:{}, mismatch:[], unknown:[], newLangs:[], rows:0};
+  for (i=0;i<langCols.length;i++){
+    res.applied[langCols[i].lang] = 0;
+    if (LANGS.indexOf(langCols[i].lang) < 0){ LANGS.push(langCols[i].lang); res.newLangs.push(langCols[i].lang); }
+  }
+  for (i=hr+1;i<rows.length;i++){
+    var r = rows[i]; if (!r || !r.length) continue;
+    var idv = norm(r[cId]); if (!/^\d+$/.test(idv)) continue;
+    res.rows++;
+    var seg = byId[+idv];
+    if (!seg){ res.unknown.push(idv); continue; }
+    var xlSrc = norm(r[cSrc]);
+    if (xlSrc && norm(seg.original) !== xlSrc){ res.mismatch.push({id:+idv, xl:xlSrc, cur:seg.original}); continue; }
+    for (j=0;j<langCols.length;j++){
+      var v2 = r[langCols[j].col];
+      if (v2 == null || String(v2).trim() === "") continue;
+      seg.tr[langCols[j].lang] = String(v2).trim();
+      res.applied[langCols[j].lang]++;
+    }
+  }
+  return res;
+}
+
+/* ============ 자동 정렬 (규칙 없는 덩어리 붙여넣기) ============ */
+/* 번역돼도 살아남는 앵커(숫자·라틴토큰)와 길이비·순서를 DP 로 정렬한다.
+   완벽할 수 없으므로 결과는 반드시 검토 화면을 거쳐서만 반영된다. */
+var ALIGN = null;
+
+function splitBlob(raw, splitSent){
+  var lines = raw.replace(/\r\n/g,"\n").split("\n"), out = [], i;
+  for (i=0;i<lines.length;i++){
+    var v = lines[i].replace(/^\s*[-*•·]\s*/,"").trim();
+    if (!v) continue;
+    if (splitSent && v.length > 140){
+      var parts = v.match(/[^.!?。！？]+[.!?。！？]+["')\]]?\s*|[^.!?。！？]+$/g) || [v];
+      for (var k=0;k<parts.length;k++){ var p = parts[k].trim(); if (p) out.push(p); }
+    } else out.push(v);
+  }
+  return out;
+}
+function numsOf(s){ return String(s).match(/\d+/g) || []; }
+function latinOf(s){ return String(s).toUpperCase().match(/[A-Z][A-Z0-9+]{1,}/g) || []; }
+function overlap(a,b){
+  if (!a.length) return 0;
+  var m = {}, i, c = 0;
+  for (i=0;i<b.length;i++) m[b[i]] = (m[b[i]]||0)+1;
+  for (i=0;i<a.length;i++) if (m[a[i]] > 0){ m[a[i]]--; c++; }
+  return c / a.length;
+}
+function prep(s){ return {t:String(s), n:numsOf(s), l:latinOf(s), len:String(s).replace(/\s+/g,"").length}; }
+
+function pairScore(k, e, meta){
+  var sc = 0;
+  // 숫자 지문 — 번역돼도 그대로 남는 가장 강한 단서 (7승 → 7 wins, 500개 → x500)
+  if (k.n.length || e.n.length){
+    var ov = overlap(k.n, e.n);
+    if (k.n.length && e.n.length){ sc += ov * 3.0; if (ov === 0) sc -= 1.6; }
+    else sc -= 0.5;
+  }
+  // 라틴 토큰 — RULE 01 / SPECIAL TITLE / ALLSTAR / PDT / UTC 등은 번역 후에도 동일
+  if (k.l.length) sc += overlap(k.l, e.l) * 3.0;
+  // 원문이 이미 영어라 그대로인 경우
+  if (k.t.trim() === e.t.trim()) sc += 2.5;
+  // 길이비 (한→영 문자수 약 1.7배)
+  var r = e.len / Math.max(1, k.len * 1.7);
+  sc += 1.2 * Math.exp(-Math.abs(Math.log(Math.max(r, 0.02))) * 1.2);
+  // HTML 통짜 모드: 구역·속성 종류가 같으면 강한 보너스
+  if (meta){
+    if (meta.ks && meta.ks === meta.es) sc += 1.5;
+    if (meta.kt === meta.et) sc += 0.8;
+  }
+  return sc;
+}
+function align(krs, ens, metas){
+  var n = krs.length, m = ens.length, i, j;
+  var K = [], E = [];
+  for (i=0;i<n;i++) K.push(prep(krs[i]));
+  for (j=0;j<m;j++) E.push(prep(ens[j]));
+  var GK = 0.30, GE = 0.45;              // KR 미매칭 / EN 잉여줄 페널티
+  var W = m + 1;
+  var dp = new Float64Array((n+1)*W), bt = new Uint8Array((n+1)*W);
+  for (i=1;i<=n;i++){ dp[i*W] = dp[(i-1)*W] - GK; bt[i*W] = 1; }
+  for (j=1;j<=m;j++){ dp[j] = dp[j-1] - GE; bt[j] = 2; }
+  for (i=1;i<=n;i++){
+    for (j=1;j<=m;j++){
+      var meta = metas ? {ks:metas.ks[i-1], es:metas.es[j-1], kt:metas.kt[i-1], et:metas.et[j-1]} : null;
+      var a = dp[(i-1)*W + (j-1)] + pairScore(K[i-1], E[j-1], meta);
+      var b = dp[(i-1)*W + j] - GK;
+      var c = dp[i*W + (j-1)] - GE;
+      var best = a, cd = 0;
+      if (b > best){ best = b; cd = 1; }
+      if (c > best){ best = c; cd = 2; }
+      dp[i*W + j] = best; bt[i*W + j] = cd;
+    }
+  }
+  var pairs = [], left = [];
+  i = n; j = m;
+  while (i > 0 || j > 0){
+    if (i > 0 && j > 0 && bt[i*W + j] === 0){
+      var meta2 = metas ? {ks:metas.ks[i-1], es:metas.es[j-1], kt:metas.kt[i-1], et:metas.et[j-1]} : null;
+      pairs.push({k:i-1, e:j-1, sc:pairScore(K[i-1], E[j-1], meta2)}); i--; j--;
+    } else if (i > 0 && (j === 0 || bt[i*W + j] === 1)){ pairs.push({k:i-1, e:-1, sc:-99}); i--; }
+    else { left.push(j-1); j--; }
+  }
+  pairs.reverse(); left.reverse();
+  return {pairs:pairs, left:left};
+}
+
+function startAlign(raw){
+  var onlyEmpty = $("#alOnlyEmpty").checked;
+  var idx = [], i;
+  for (i=0;i<SEGS.length;i++){
+    if (onlyEmpty && SEGS[i].tr[CUR] && SEGS[i].tr[CUR].trim()) continue;
+    idx.push(i);
+  }
+  if (!idx.length){ toast("정렬할 대상이 없습니다"); return; }
+
+  var ens, metas = null, mode;
+  if (/<[a-zA-Z][^>]*>/.test(raw) && raw.indexOf("</") >= 0){
+    // 번역된 HTML 통짜 → 같은 추출기로 뽑아 구조까지 대조
+    var eSegs = extract(raw, OPTS);
+    ens = []; metas = {ks:[], es:[], kt:[], et:[]};
+    for (i=0;i<eSegs.length;i++){ ens.push(eSegs[i].original); metas.es.push(eSegs[i].section); metas.et.push(eSegs[i].type + (eSegs[i].attr||"")); }
+    for (i=0;i<idx.length;i++){ metas.ks.push(SEGS[idx[i]].section); metas.kt.push(SEGS[idx[i]].type + (SEGS[idx[i]].attr||"")); }
+    mode = "HTML 통짜";
+  } else {
+    ens = splitBlob(raw, $("#alSent").checked);
+    mode = "텍스트 덩어리";
+  }
+  if (!ens.length){ toast("붙여넣은 내용에서 문장을 찾지 못했습니다"); return; }
+
+  var krs = [];
+  for (i=0;i<idx.length;i++) krs.push(SEGS[idx[i]].original);
+  var res = align(krs, ens, metas);
+
+  var props = [], scs = [];
+  for (i=0;i<idx.length;i++){ props.push(""); scs.push(-99); }
+  for (i=0;i<res.pairs.length;i++){
+    var p = res.pairs[i];
+    if (p.e >= 0){ props[p.k] = ens[p.e]; scs[p.k] = p.sc; }
+  }
+  var leftText = [];
+  for (i=0;i<res.left.length;i++) leftText.push(ens[res.left[i]]);
+
+  ALIGN = {idx:idx, krs:krs, props:props, scs:scs, left:leftText, mode:mode, total:ens.length};
+  renderAlign();
+  $("#alignCard").style.display = "";
+  $("#alignCard").scrollIntoView({block:"start"});
+}
+function conf(sc){ return sc >= 2.2 ? "hi" : (sc >= 1.0 ? "mid" : "lo"); }
+function renderAlign(){
+  if (!ALIGN) return;
+  var hide = $("#alHideEmpty").checked, h = "", i, matched = 0, lo = 0;
+  for (i=0;i<ALIGN.props.length;i++){
+    if (ALIGN.props[i].trim()){ matched++; if (conf(ALIGN.scs[i]) === "lo") lo++; }
+    if (hide && !ALIGN.props[i].trim()) continue;
+    h += '<div class="al" data-i="'+i+'">'
+       +  '<div class="c"><span class="dot '+(ALIGN.props[i].trim()?conf(ALIGN.scs[i]):"lo")+'"></span></div>'
+       +  '<div class="k">'+esc(ALIGN.krs[i])+'</div>'
+       +  '<textarea data-ai="'+i+'" aria-label="'+(i+1)+'번째 항목의 번역" placeholder="(매칭 없음)">'+esc(ALIGN.props[i])+'</textarea>'
+       +  '<div class="mv"><button data-up="'+i+'" title="이 행부터 위로 당기기">▲</button><button data-dn="'+i+'" title="이 행부터 아래로 밀기">▼</button></div>'
+       + '</div>';
+  }
+  $("#alignList").innerHTML = h;
+  $$("#alignList textarea").forEach(autoGrow);
+  $("#alInfo").innerHTML = '<span class="chip p">'+ALIGN.mode+'</span> 대상 '+ALIGN.props.length+'개 중 <b style="color:var(--acc2)">'+matched
+    + '</b>개 매칭 · <b style="color:var(--red)">불확실 '+lo+'개</b> · 입력 문장 '+ALIGN.total+'개';
+  var lh = "";
+  if (ALIGN.left.length){
+    lh = '<div class="leftbox"><b>⚠ 배치되지 않고 남은 문장 '+ALIGN.left.length+'개</b> — 제목·머리말이면 정상이고, 본문이면 위 칸에 직접 옮겨 넣으세요.';
+    for (var z=0;z<ALIGN.left.length && z<40;z++) lh += '<div>· '+esc(ALIGN.left[z])+'</div>';
+    if (ALIGN.left.length > 40) lh += '<div>… 외 '+(ALIGN.left.length-40)+'개</div>';
+    lh += '</div>';
+  }
+  $("#alLeft").innerHTML = lh;
+}
+$("#alignList").addEventListener("input", function(e){
+  if (e.target.tagName !== "TEXTAREA" || !ALIGN) return;
+  ALIGN.props[parseInt(e.target.dataset.ai,10)] = e.target.value;
+  ALIGN.scs[parseInt(e.target.dataset.ai,10)] = 3;
+  autoGrow(e.target);
+});
+$("#alignList").addEventListener("click", function(e){
+  var b = e.target.closest("button[data-up],button[data-dn]"); if (!b || !ALIGN) return;
+  if (b.dataset.dn !== undefined){                    // 이 행부터 아래로 한 칸 밀기
+    var i = parseInt(b.dataset.dn,10);
+    ALIGN.props.splice(i, 0, ""); ALIGN.scs.splice(i, 0, -99);
+    var tail = ALIGN.props.pop(); ALIGN.scs.pop();
+    if (tail && tail.trim()) ALIGN.left.push(tail);
+  } else {                                            // 이 행부터 위로 한 칸 당기기
+    var j = parseInt(b.dataset.up,10);
+    var cut = ALIGN.props.splice(j,1)[0]; ALIGN.scs.splice(j,1);
+    if (cut && cut.trim()) ALIGN.left.push(cut);
+    ALIGN.props.push(""); ALIGN.scs.push(-99);
+  }
+  renderAlign();
+});
+$("#alApply").onclick = function(){
+  if (!ALIGN) return;
+  var n = 0;
+  for (var i=0;i<ALIGN.props.length;i++){
+    var v = ALIGN.props[i];
+    if (v && v.trim()){ SEGS[ALIGN.idx[i]].tr[CUR] = v.trim(); n++; }
+  }
+  ALIGN = null; $("#alignCard").style.display = "none";
+  save(); renderTable();
+  $("#impInfo").innerHTML = '<b style="color:var(--acc2)">자동 정렬로 '+n+'개 적용 완료</b> — 결과 미리보기로 확인해 보세요.';
+  toast(n + "개 적용됨");
+};
+$("#alCancel").onclick = function(){ ALIGN = null; $("#alignCard").style.display = "none"; };
+$("#alHideEmpty").onchange = renderAlign;
+
+/* ============ 검수 ============ */
+/* 엑셀을 되돌린 직후 사고를 잡는다. 경고일 뿐 무엇도 막지 않는다. */
+var QA_LABEL = {kr:"한글 잔존", num:"숫자 누락", ent:"기호 누락", len:"길이 이상", tag:"태그 섞임"};
+var QA_ORDER = ["kr","num","ent","tag","len"];
+var QA_TIP = {
+  kr:  "번역문에 한국어가 그대로 남아 있습니다",
+  num: "원문에 있던 숫자가 번역문에 없습니다",
+  ent: "원문에 있던 &기호가 번역문에 없습니다",
+  len: "원문 대비 너무 길거나 너무 짧습니다",
+  tag: "번역문에 태그나 잘못된 &가 섞여 있습니다"
+};
+function noSpace(s){ return String(s).replace(/\s+/g,""); }
+function missingAll(list, t){
+  for (var i=0;i<list.length;i++) if (t.indexOf(list[i]) < 0) return true;
+  return false;
+}
+function qaOf(seg, lang){
+  var t = seg.tr[lang];
+  if (!t || !String(t).trim()) return [];      // 미번역은 '미번역만' 필터의 몫
+  t = String(t);
+  var o = seg.original, out = [];
+
+  if (/[가-힣]/.test(t)) out.push("kr");
+  var on = o.match(/\d+/g) || [];
+  if (on.length && missingAll(on, t)) out.push("num");
+  var oe = o.match(/&[a-zA-Z][a-zA-Z0-9]*;|&#[0-9]+;/g) || [];
+  if (oe.length && missingAll(oe, t)) out.push("ent");
+  if (badTr(t)) out.push("tag");
+
+  var ol = noSpace(o).length, tl = noSpace(t).length;
+  if (ol >= 6 && (tl > ol * 3.5 || tl < ol / 3)) out.push("len");
+  return out;
+}
+function qaCounts(){
+  var c = {}, i, k, total = 0;
+  for (i=0;i<QA_ORDER.length;i++) c[QA_ORDER[i]] = 0;
+  for (i=0;i<SEGS.length;i++){
+    var q = qaOf(SEGS[i], CUR);
+    if (q.length) total++;
+    for (k=0;k<q.length;k++) c[q[k]]++;
+  }
+  c._rows = total;
+  return c;
+}
+var QA_PICK = "";   // 특정 유형만 보기 ("" = 전체)
+function renderQaBar(){
+  var c = qaCounts(), h = "", i;
+  if (!SEGS.length){ $("#qabar").innerHTML = ""; return; }
+  if (!c._rows){
+    $("#qabar").innerHTML = '<span class="ok">✔ '+esc(CUR)+' 검수 경고 없음</span>';
+    return;
+  }
+  h += '<span class="hint" style="margin-right:.2rem">검수 경고 <b style="color:var(--warn)">'+c._rows+'</b>건 —</span>';
+  for (i=0;i<QA_ORDER.length;i++){
+    var k = QA_ORDER[i];
+    if (!c[k]) continue;
+    h += '<button class="qb'+(QA_PICK===k?" on":"")+'" data-qa="'+k+'" title="'+esc(QA_TIP[k])+'">'+esc(QA_LABEL[k])+' '+c[k]+'</button>';
+  }
+  if (QA_PICK) h += '<button class="qb" data-qa="">전체 보기</button>';
+  $("#qabar").innerHTML = h;
+}
+
+/* ============ 렌더 ============ */
+function doneCount(L){
+  var d = 0;
+  for (var i=0;i<SEGS.length;i++){ var v = SEGS[i].tr[L]; if (v && String(v).trim()) d++; }
+  return d;
+}
+function stats(){
+  var tot = SEGS.length, done = doneCount(CUR);
+  return {tot:tot, done:done, pct: tot ? Math.round(done/tot*100) : 0};
+}
+function renderLangs(){
+  var h = "";
+  for (var i=0;i<LANGS.length;i++){
+    var L = LANGS[i], d = doneCount(L);
+    var p = SEGS.length ? Math.round(d/SEGS.length*100) : 0;
+    var rest = SEGS.length - d;
+    h += '<button class="lc'+(L===CUR?" on":"")+(rest===0&&SEGS.length?" full":"")+'" data-lang="'+esc(L)+'">'
+       +   '<div class="t"><span class="code">'+esc(L)+'</span><span class="nm">'+esc(LANGNAME[L]||"")+'</span><span class="pc">'+p+'%</span></div>'
+       +   '<div class="bar"><i style="width:'+p+'%"></i></div>'
+       +   '<div class="rest">'+(SEGS.length ? (rest ? '남은 항목 <b>'+rest+'</b>개' : '<b>번역 완료</b>') : '항목 없음')+'</div>'
+       + '</button>';
+  }
+  $("#langcards").innerHTML = h;
+}
+function flagChips(f){
+  var h = "";
+  if (f.indexOf("region") >= 0) h += ' <span class="chip p">지역수정</span>';
+  if (f.indexOf("strike") >= 0) h += ' <span class="chip r">삭제표시</span>';
+  return h;
+}
+function badTr(t){
+  if (!t) return false;
+  if (OPTS.esc) return false;
+  return /<[a-zA-Z\/]/.test(t) || /&(?!(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/.test(t);
+}
+/* 빈 화면 대신 지금 무엇을 하면 되는지 알려준다 */
+function emptyMsg(){
+  if (!SEGS.length)
+    return '<div class="empty"><b>아직 추출된 항목이 없습니다</b>'
+         + '<button class="btn" data-goto="1" style="margin-top:var(--sp-3)">1. 원본 소스로 이동</button>'
+         + '<div style="margin-top:var(--sp-2)">한국어 HTML을 붙여넣고 [한국어 추출]을 누르면 여기에 번역할 항목이 나타납니다.</div></div>';
+
+  var on = [];
+  if ($("#fEmpty").checked) on.push("미번역만");
+  if ($("#fFlag").checked) on.push("지역수정·삭제표시만");
+  if ($("#fQa").checked) on.push("검수 필요만");
+  if (QA_PICK) on.push(QA_LABEL[QA_PICK]);
+  if ($("#q").value.trim()) on.push('검색 "' + $("#q").value.trim() + '"');
+
+  return '<div class="empty"><b>조건에 맞는 항목이 없습니다</b>'
+       + (on.length ? '적용 중인 조건 — ' + esc(on.join(" · "))
+                      + '<div style="margin-top:var(--sp-2)">조건을 해제하면 전체 ' + SEGS.length + '개가 표시됩니다.</div>'
+                    : '전체 ' + SEGS.length + '개 중 표시할 항목이 없습니다.')
+       + '</div>';
+}
+function qaChips(q){
+  var h = "";
+  for (var i=0;i<q.length;i++) h += ' <span class="chip q" title="'+esc(QA_TIP[q[i]])+'">'+esc(QA_LABEL[q[i]])+'</span>';
+  return h;
+}
+function renderTable(){
+  var q = $("#q").value.trim().toLowerCase();
+  var onlyEmpty = $("#fEmpty").checked, onlyFlag = $("#fFlag").checked, onlyQa = $("#fQa").checked;
+  var h = "", lastG = null, lastSec = null, open = false, shown = 0;
+
+  for (var i=0;i<SEGS.length;i++){
+    var s = SEGS[i], tr = s.tr[CUR] || "";
+    if (onlyEmpty && tr.trim()) continue;
+    if (onlyFlag && !s.flags.length) continue;
+    var qa = qaOf(s, CUR);
+    if (onlyQa && !qa.length) continue;
+    if (QA_PICK && qa.indexOf(QA_PICK) < 0) continue;
+    if (q && (s.original.toLowerCase().indexOf(q) < 0) && (tr.toLowerCase().indexOf(q) < 0)) continue;
+    shown++;
+    if (s.gid !== lastG){
+      if (open) h += "</div>";
+      h += '<div class="grp">';
+      // 문맥이 그 행의 원문과 똑같으면 중복이므로 감춘다. 구역명은 바뀔 때만 표시.
+      var showCtx = s.ctx && s.ctx !== s.original;
+      var showSec = s.section && s.section !== lastSec;
+      if (showCtx || showSec)
+        h += '<div class="ctx">' + (showSec ? '<b>['+esc(s.section)+']</b> ' : "") + (showCtx ? esc(s.ctx) : "") + '</div>';
+      open = true; lastG = s.gid;
+    }
+    lastSec = s.section;
+    var meta = (s.type === "attr") ? ' <span class="chip w">'+esc(s.attr)+'</span>' : "";
+    h += '<div class="seg'+(tr.trim()?" done":"")+(qa.length?" warn":"")+'" data-id="'+s.id+'">'
+       +   '<div class="id">#'+s.id+'</div>'
+       +   '<div class="src">'+esc(s.original)+'<span class="meta">'+meta+flagChips(s.flags)+qaChips(qa)+'</span></div>'
+       +   '<textarea data-id="'+s.id+'" class="'+(badTr(tr)?"bad":"")+'" aria-label="#'+s.id+' '+esc(CUR)+' 번역" placeholder="'+esc(CUR)+' 번역…">'+esc(tr)+'</textarea>'
+       + '</div>';
+  }
+  if (open) h += "</div>";
+  $("#table").innerHTML = h || emptyMsg(shown);
+  $$("#table textarea").forEach(autoGrow);
+
+  $("#cnt").textContent = "표시 " + shown + "개";
+  renderStat();
+  renderLangs();
+  renderRuleBar();
+  renderQaBar();
+  refreshSteps();
+}
+function renderStat(){
+  var st = stats();
+  $("#stat").innerHTML = SEGS.length
+    ? ('<b style="color:#fff">'+esc(langLabel(CUR))+'</b> 편집 중 · 전체 '+st.tot+'개 중 <b style="color:var(--acc2)">'+st.done
+       +'</b>개 완료 ('+st.pct+'%) · 남은 항목 '+(st.tot-st.done)+'개')
+    : '원본 소스를 추출하면 여기에 항목이 나타납니다.';
+}
+function autoGrow(el){ el.style.height="auto"; el.style.height=(el.scrollHeight+2)+"px"; }
+function segById(id){ for (var i=0;i<SEGS.length;i++) if (SEGS[i].id === id) return SEGS[i]; return null; }
+
+/* ============ 이벤트 ============ */
+$$(".steps button").forEach(function(b){
+  b.onclick = function(){
+    $$(".steps button").forEach(function(x){ x.classList.remove("on"); x.removeAttribute("aria-current"); });
+    b.classList.add("on"); b.setAttribute("aria-current","step");
+    $$("section.step").forEach(function(x){x.classList.remove("on");});
+    $("#s"+b.dataset.go).classList.add("on");
+    if (b.dataset.go === "2") renderTable();
+    if (b.dataset.go === "3"){ $("#rules").value = RULES[CUR] || ""; renderRuleBar(); renderAllInfo(); }
+    if (b.dataset.go === "4") renderExtraLangs();
+    window.scrollTo(0,0);
+  };
+});
+function goStep(n){ var b=document.querySelector('.steps button[data-go="'+n+'"]'); if(b) b.click(); }
+
+/* 헤더 스텝에 완료 표시 — 지금 무엇을 먼저 해야 하는지 보이게 */
+function refreshSteps(){
+  var extracted = SEGS.length > 0, allTranslated = extracted, i;
+  for (i=0;i<LANGS.length;i++) if (doneCount(LANGS[i]) < SEGS.length) allTranslated = false;
+
+  $$(".steps button").forEach(function(b){
+    var n = +b.dataset.go;
+    var ok = (n === 1) ? extracted : (n === 2 ? allTranslated : false);
+    b.classList.toggle("todo", !extracted && (n === 2 || n === 3));
+    var tick = b.querySelector(".tick");
+    if (ok && !tick){
+      var s = document.createElement("span");
+      s.className = "tick"; s.textContent = "✔";
+      b.insertBefore(s, b.firstChild);
+    } else if (!ok && tick) tick.remove();
+  });
+}
+
+$("#file").onchange = function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){ $("#src").value = r.result; srcInfo(); };
+  r.readAsText(f, $("#enc").value);
+};
+function srcInfo(){
+  var v = $("#src").value;
+  $("#srcInfo").textContent = v ? (v.length.toLocaleString() + "자 / " + v.split(/\r?\n/).length.toLocaleString() + "줄") : "";
+}
+$("#src").oninput = srcInfo;
+
+$("#doExtract").onclick = function(){
+  var v = $("#src").value;
+  if (!v.trim()){ toast("원본 소스를 먼저 넣어주세요"); return; }
+  OPTS.attr = $("#optAttr").checked; OPTS.sync = $("#optSync").checked; OPTS.esc = $("#optEsc").checked;
+
+  var old = {};
+  for (var i=0;i<SEGS.length;i++) old[SEGS[i].original] = SEGS[i].tr;
+
+  SRC = v;
+  SEGS = extract(SRC, OPTS);
+
+  var reused = 0;
+  for (var k=0;k<SEGS.length;k++){
+    if (old[SEGS[k].original]){
+      var src0 = old[SEGS[k].original], any = false;
+      for (var L in src0){ if (src0[L] && String(src0[L]).trim()){ SEGS[k].tr[L] = src0[L]; any = true; } }
+      if (any) reused++;
+    }
+  }
+  save();
+  toast("추출 완료: " + SEGS.length + "개" + (reused ? " (기존 번역 " + reused + "개 복원)" : ""));
+  goStep(2);
+};
+
+$("#langcards").onclick = function(e){
+  var b = e.target.closest("button[data-lang]"); if (!b) return;
+  if (CUR === b.dataset.lang) return;
+  CUR = b.dataset.lang; QA_PICK = ""; save(); renderTable();
+};
+$("#qabar").onclick = function(e){
+  var b = e.target.closest("button[data-qa]"); if (!b) return;
+  QA_PICK = (b.dataset.qa === QA_PICK) ? "" : b.dataset.qa;
+  if (QA_PICK) $("#fQa").checked = false;
+  renderTable();
+};
+
+$("#table").addEventListener("click", function(e){
+  var b = e.target.closest("button[data-goto]");
+  if (b) goStep(b.dataset.goto);
+});
+
+$("#table").addEventListener("input", function(e){
+  var el = e.target; if (el.tagName !== "TEXTAREA") return;
+  var s = segById(parseInt(el.dataset.id,10)); if (!s) return;
+  s.tr[CUR] = el.value;
+  autoGrow(el);
+  el.classList.toggle("bad", badTr(el.value));
+  el.closest(".seg").classList.toggle("done", !!el.value.trim());
+
+  if (OPTS.sync && el.value.trim()){
+    for (var i=0;i<SEGS.length;i++){
+      var o = SEGS[i];
+      if (o !== s && o.original === s.original && (!o.tr[CUR] || !o.tr[CUR].trim())){
+        o.tr[CUR] = el.value;
+        var t = document.querySelector('#table textarea[data-id="'+o.id+'"]');
+        if (t){ t.value = el.value; autoGrow(t); t.closest(".seg").classList.add("done"); }
+      }
+    }
+  }
+  var seg = el.closest(".seg");
+  var qa = qaOf(s, CUR);
+  seg.classList.toggle("warn", qa.length > 0);
+  var metaEl = seg.querySelector(".src .meta");
+  if (metaEl){
+    var keep = (s.type === "attr") ? ' <span class="chip w">'+esc(s.attr)+'</span>' : "";
+    metaEl.innerHTML = keep + flagChips(s.flags) + qaChips(qa);
+  }
+  renderStat();
+  renderLangs();
+  saveDebounced();
+});
+
+$("#q").oninput = renderTable;
+$("#fEmpty").onchange = renderTable;
+$("#fFlag").onchange = renderTable;
+$("#fQa").onchange = function(){ if (this.checked) QA_PICK = ""; renderTable(); };
+$("#fillSame").onclick = function(){
+  var c = 0;
+  for (var i=0;i<SEGS.length;i++){ if (!SEGS[i].tr[CUR] || !SEGS[i].tr[CUR].trim()){ SEGS[i].tr[CUR] = SEGS[i].original; c++; } }
+  save(); renderTable(); toast(c + "개를 원문으로 채웠습니다");
+};
+$("#clearLang").onclick = function(){
+  if (!confirm(CUR + " 번역을 모두 비웁니다. 계속할까요?")) return;
+  for (var i=0;i<SEGS.length;i++) delete SEGS[i].tr[CUR];
+  save(); renderTable();
+};
+
+/* ---- 내보내기 ---- */
+function rows(onlyEmpty){
+  var r = [];
+  for (var i=0;i<SEGS.length;i++){
+    var s = SEGS[i], t = s.tr[CUR] || "";
+    if (onlyEmpty && t.trim()) continue;
+    r.push([String(s.id), s.section || "", s.original, t]);
+  }
+  return r;
+}
+function nl(s){ return String(s).replace(/\t/g," ").replace(/\r?\n/g,"\\n"); }
+function unnl(s){ return String(s).replace(/\\n/g,"\n"); }
+
+function stamp(){
+  var d = new Date(), p = function(n){ return (n<10?"0":"") + n; };
+  return String(d.getFullYear()).slice(2) + p(d.getMonth()+1) + p(d.getDate());
+}
+function fileBase(){
+  var v = (FBASE || "").trim().replace(/[\\/:*?"<>|]/g, "_");
+  return v || "번역";
+}
+$("#expXlsx").onclick = function(){
+  if (!SEGS.length){ toast("먼저 원본을 추출하세요"); return; }
+  var langs = ($("#xlScope").value === "cur") ? [CUR] : LANGS.slice();
+  var r = xlsxBlob(langs, $("#expOnlyEmpty").checked);
+  if (!r.rows){ toast("내보낼 행이 없습니다"); return; }
+  dlBytes(r.bytes, fileBase() + "_번역요청_" + langs.join("-") + "_" + stamp() + ".xlsx");
+  toast(r.rows + "행 / " + langs.length + "개 언어 열로 엑셀 생성");
+};
+function xlDone(res){
+  save(); renderTable(); renderExtraLangs();
+  var h = '<div class="leftbox good">';
+  h += '<b style="color:var(--acc2)">✔ '+res.rows+'행 적용 완료</b>';
+  for (var L in res.applied) h += '<div>· <b style="color:#fff">'+esc(langLabel(L))+'</b> : '+res.applied[L]+'개</div>';
+  if (res.newLangs.length) h += '<div>· 새 언어 자동 추가: <b style="color:var(--pur)">'+esc(res.newLangs.join(", "))+'</b></div>';
+  h += '</div>';
+
+  // 되돌린 직후가 사고가 가장 잘 나는 지점 — 검수 경고가 있으면 바로 알린다
+  var qc = qaCounts();
+  if (qc._rows)
+    h += '<div class="leftbox" style="margin-top:var(--sp-3)"><b>검수 경고 '+qc._rows+'건 ('+esc(CUR)+')</b>'
+      +  '<div>아래 표의 <b>[검수 필요만]</b>으로 한 번 훑어보세요. 한글 잔존·숫자 누락 같은 복사 사고를 잡습니다.</div></div>';
+  if (res.mismatch.length || res.unknown.length){
+    h += '<div class="leftbox" style="margin-top:var(--sp-3)"><b>⚠ 건너뛴 행 '+(res.mismatch.length+res.unknown.length)+'개</b>'
+      +  '<div>원본이 바뀐 뒤의 옛 표이거나, 원문 열이 수정된 행입니다. <b>ID·원문 열은 수정하면 안 됩니다.</b></div>';
+    for (var i=0;i<res.mismatch.length && i<10;i++)
+      h += '<div>· ID '+res.mismatch[i].id+' — 표 「'+esc(res.mismatch[i].xl.slice(0,40))+'」 ≠ 현재 「'+esc(res.mismatch[i].cur.slice(0,40))+'」</div>';
+    if (res.unknown.length) h += '<div>· 존재하지 않는 ID: '+esc(res.unknown.slice(0,20).join(", "))+'</div>';
+    h += '</div>';
+  }
+  $("#xlReport").innerHTML = h;
+  toast("적용 완료");
+}
+function xlFail(err){
+  var m = esc(err.message), extra = "";
+  if (/ZIP 형식이 아닙니다/.test(err.message))
+    extra = '<div style="margin-top:var(--sp-2)">이 파일은 <b>암호화된 엑셀</b>일 가능성이 큽니다. 회사 M365 정책이 저장 시 민감도 레이블을 씌우면 브라우저에서 열 수 없습니다.<br />'
+          + '→ 엑셀에서 <b>다른 이름으로 저장 → CSV UTF-8(*.csv)</b> 로 내보내거나, 시트를 <b>전체 선택 후 복사해서 아래 붙여넣기 칸</b>에 넣으세요. 둘 다 암호화를 거치지 않습니다.</div>';
+  $("#xlReport").innerHTML = '<div class="leftbox"><b>불러오기 실패</b><div>'+m+extra+'</div></div>';
+}
+$("#doXlsx").onclick = function(){
+  var f = $("#xlFile").files[0];
+  if (!f){ toast("파일을 선택하세요"); return; }
+  if (!SEGS.length){ toast("먼저 원본을 추출하세요"); return; }
+  $("#xlReport").innerHTML = '<p class="hint">읽는 중…</p>';
+  var fr = new FileReader();
+  if (/\.xlsx$/i.test(f.name)){
+    fr.onload = function(){ unzip(fr.result).then(function(map){ xlDone(applyXlsx(map)); }).catch(xlFail); };
+    fr.readAsArrayBuffer(f);
+  } else {
+    fr.onload = function(){ try { xlDone(applyDelimited(fr.result)); } catch(e){ xlFail(e); } };
+    fr.readAsText(f, "utf-8");
+  }
+};
+
+$("#expTsv").onclick = function(){
+  var r = rows($("#expOnlyEmpty").checked);
+  var out = "ID\t구역\t원문(KR)\t번역("+CUR+")\n";
+  for (var i=0;i<r.length;i++) out += r[i].map(nl).join("\t") + "\n";
+  copy(out); toast("TSV " + r.length + "행 복사됨 → 엑셀에 붙여넣기");
+};
+function csvCell(s){ return '"' + String(s).replace(/"/g,'""') + '"'; }
+$("#expCsv").onclick = function(){
+  var r = rows($("#expOnlyEmpty").checked);
+  var out = "﻿" + ["ID","구역","원문(KR)","번역("+CUR+")"].map(csvCell).join(",") + "\r\n";
+  for (var i=0;i<r.length;i++) out += r[i].map(csvCell).join(",") + "\r\n";
+  dl(out, "translate_" + CUR + ".csv", "text/csv;charset=utf-8");
+};
+$("#expJson").onclick = function(){
+  var o = [];
+  for (var i=0;i<SEGS.length;i++){
+    var s = SEGS[i], t = s.tr[CUR] || "";
+    if ($("#expOnlyEmpty").checked && t.trim()) continue;
+    o.push({id:s.id, section:s.section, source:s.original, target:t});
+  }
+  dl(JSON.stringify({lang:CUR, items:o}, null, 2), "translate_" + CUR + ".json", "application/json");
+};
+
+/* ---- 가져오기 ---- */
+$("#impFile").onchange = function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){ $("#impBox").value = r.result; };
+  r.readAsText(f, "utf-8");
+};
+function parseCSV(text){
+  var out = [], row = [], cell = "", q = false, i = 0;
+  while (i < text.length){
+    var c = text.charAt(i);
+    if (q){
+      if (c === '"'){ if (text.charAt(i+1) === '"'){ cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === ","){ row.push(cell); cell = ""; }
+      else if (c === "\n"){ row.push(cell); out.push(row); row = []; cell = ""; }
+      else if (c === "\r"){}
+      else cell += c;
+    }
+    i++;
+  }
+  if (cell !== "" || row.length){ row.push(cell); out.push(row); }
+  return out;
+}
+$("#doImport").onclick = function(){
+  var raw = $("#impBox").value;
+  if (!raw.trim()){ toast("붙여넣은 내용이 없습니다"); return; }
+  if (!SEGS.length){ toast("먼저 원본을 추출하세요"); return; }
+  var mode = $("#impMode").value, n = 0, i;
+
+  if (mode === "blob"){ startAlign(raw); return; }
+
+  // JSON
+  var tj = raw.trim();
+  if (tj.charAt(0) === "{" || tj.charAt(0) === "["){
+    try {
+      var j = JSON.parse(tj);
+      var items = Array.isArray(j) ? j : (j.items || []);
+      if (!Array.isArray(items) && typeof j === "object"){
+        for (var kk in j){ var s0 = segById(parseInt(kk,10)); if (s0 && j[kk]){ s0.tr[CUR] = String(j[kk]); n++; } }
+      } else {
+        for (i=0;i<items.length;i++){
+          var it = items[i];
+          var tv = it.target !== undefined ? it.target : (it.translation !== undefined ? it.translation : it.tr);
+          if (tv === undefined || String(tv).trim() === "") continue;
+          var s1 = (it.id !== undefined) ? segById(Number(it.id)) : null;
+          if (s1){ s1.tr[CUR] = String(tv); n++; }
+          else if (it.source){ n += fillBySource(String(it.source), String(tv)); }
+        }
+      }
+      finishImport(n); return;
+    } catch(e){ /* JSON 아님 → 계속 */ }
+  }
+
+  var lines = raw.replace(/\r\n/g,"\n").split("\n");
+
+  if (mode === "order"){
+    var vals = [];
+    for (i=0;i<lines.length;i++) if (lines[i].trim()) vals.push(lines[i]);
+    for (i=0;i<vals.length && i<SEGS.length;i++){ SEGS[i].tr[CUR] = unnl(vals[i]); n++; }
+    finishImport(n); return;
+  }
+
+  var table;
+  if (raw.indexOf("\t") >= 0){
+    table = [];
+    for (i=0;i<lines.length;i++){ if (!lines[i].trim()) continue; table.push(lines[i].split("\t")); }
+  } else {
+    table = parseCSV(raw).filter(function(r){ return r.join("").trim() !== ""; });
+  }
+  if (!table.length){ toast("표를 인식하지 못했습니다"); return; }
+
+  // 자동 감지: 열 구분이 없는 = 규칙 없는 덩어리 → 자동 정렬로 넘긴다
+  if (mode === "auto"){
+    var multi = 0;
+    for (i=0;i<table.length;i++) if (table[i].length > 1) multi++;
+    if (multi < table.length * 0.5){ startAlign(raw); return; }
+  }
+
+  // 템플릿 헤더(ID + 원문)가 보이면 엑셀과 동일한 검증 경로로 — 전 언어 한 번에 들어간다
+  if (mode === "auto" || mode === "id"){
+    for (i=0;i<Math.min(table.length,20);i++){
+      var jn = table[i].map(norm).join("|");
+      if (/(^|\|)ID(\||$)/i.test(jn) && jn.indexOf("원문") >= 0){
+        try { xlDone(applyTable(table)); $("#impInfo").innerHTML = '<b style="color:var(--acc2)">템플릿 형식 인식 — 위 리포트를 확인하세요.</b>'; return; }
+        catch(e2){ /* 실패하면 아래 일반 경로로 */ }
+        break;
+      }
+    }
+  }
+
+  // 헤더 제거
+  var h0 = (table[0][0] || "").trim().toLowerCase();
+  if (h0 === "id" || h0 === "#" || (table[0].join(" ").indexOf("원문") >= 0)) table.shift();
+
+  for (i=0;i<table.length;i++){
+    var r2 = table[i];
+    if (!r2.length) continue;
+    var idCell = (r2[0] || "").trim();
+    var target = unnl((r2[r2.length-1] || "").trim());
+    if (!target) continue;
+
+    var useId = (mode === "id") || (mode === "auto" && /^\d+$/.test(idCell));
+    if (useId && /^\d+$/.test(idCell)){
+      var s2 = segById(parseInt(idCell,10));
+      if (s2){ s2.tr[CUR] = target; n++; continue; }
+    }
+    // 원문 기준
+    var source = "";
+    if (r2.length >= 4) source = (r2[2] || "").trim();
+    else if (r2.length === 3) source = (r2[1] || "").trim();
+    else if (r2.length === 2) source = (r2[0] || "").trim();
+    if (source) n += fillBySource(unnl(source), target);
+  }
+  finishImport(n);
+};
+function fillBySource(source, target){
+  var c = 0;
+  for (var i=0;i<SEGS.length;i++){ if (SEGS[i].original === source){ SEGS[i].tr[CUR] = target; c++; } }
+  return c;
+}
+function finishImport(n){
+  save(); renderTable();
+  $("#impInfo").innerHTML = n ? ('<b style="color:var(--acc2)">'+n+'개 적용 완료</b>') : '<b style="color:var(--red)">0개 적용됨 — ID나 원문이 일치하지 않습니다. 모드를 바꿔 다시 시도해보세요.</b>';
+  toast(n + "개 적용됨");
+}
+
+/* ---- 결과 ---- */
+$("#rules").oninput = function(){ RULES[CUR] = $("#rules").value; renderRuleBar(); saveDebounced(); };
+$("#fileBase").oninput = function(){ FBASE = this.value; renderAllInfo(); saveDebounced(); };
+function renderAllInfo(){
+  if (document.activeElement !== $("#fileBase")) $("#fileBase").value = FBASE;
+  $("#allInfo").innerHTML = SEGS.length
+    ? ('<code>' + esc(fileBase()) + '_' + esc(LANGS[0] || "EN") + '.txt</code> 형태로 ' + LANGS.length + '개 파일이 zip 안에 들어갑니다')
+    : '먼저 원본을 추출하세요';
+}
+/* 후처리 규칙은 언어별로 따로 저장된다 — 지금 어느 언어를 편집 중인지 항상 보이게 */
+function hasRule(L){ return !!(RULES[L] && RULES[L].trim()); }
+function renderRuleBar(){
+  var h = "", i;
+  for (i=0;i<LANGS.length;i++){
+    var L = LANGS[i];
+    h += '<button data-lang="'+esc(L)+'" class="'+(L===CUR?"on":"")+'">'+esc(L)
+       +  (hasRule(L) ? '<span class="pct">규칙 '+RULES[L].split(/\r?\n/).filter(function(r){return r.indexOf("=>")>=0;}).length+'줄</span>' : '<span class="pct">없음</span>')
+       + '</button>';
+  }
+  $("#langbar3").innerHTML = h;
+  $("#rulesFor").innerHTML = '<b style="color:var(--pur)">'+esc(langLabel(CUR))+'</b>에만 적용됩니다';
+}
+$("#langbar3").onclick = function(e){
+  var b = e.target.closest("button[data-lang]"); if (!b || CUR === b.dataset.lang) return;
+  RULES[CUR] = $("#rules").value;
+  CUR = b.dataset.lang; QA_PICK = "";
+  $("#rules").value = RULES[CUR] || "";
+  renderRuleBar(); renderLangs(); renderStat(); save();
+};
+$("#doBuild").onclick = function(){
+  if (!SRC){ toast("원본이 없습니다"); return; }
+  RULES[CUR] = $("#rules").value;
+  var out = build(CUR);
+  $("#out").value = out;
+  var st = stats();
+  var warn = (st.tot - st.done);
+  $("#buildInfo").innerHTML = '<span class="chip">'+esc(langLabel(CUR))+'</span> ' + out.length.toLocaleString() + '자 생성' +
+    (warn ? ' · <b style="color:var(--warn)">미번역 '+warn+'개는 한국어 그대로 남았습니다</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>');
+  preview(out);
+  save();
+};
+
+/* 전 언어를 txt로 만들어 zip 하나로 — xlsx 만들 때 쓰는 zip()을 그대로 재사용 */
+$("#buildAll").onclick = function(){
+  if (!SRC){ toast("원본이 없습니다"); return; }
+  if (!SEGS.length){ toast("먼저 원본을 추출하세요"); return; }
+  RULES[CUR] = $("#rules").value;
+
+  var files = [], lines = [], i, base = fileBase();
+  for (i=0;i<LANGS.length;i++){
+    var L = LANGS[i], out = build(L), rest = SEGS.length - doneCount(L);
+    files.push({name: base + "_" + L + ".txt", data: u8(out)});
+    lines.push('<div>· <b style="color:#fff">' + esc(base + "_" + L + ".txt") + '</b> — ' + out.length.toLocaleString() + '자'
+      + (rest ? ' · <b style="color:var(--warn)">미번역 ' + rest + '개는 한국어 그대로</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>') + '</div>');
+  }
+  dlBytes(zip(files), base + "_" + stamp() + ".zip");
+
+  $("#allReport").innerHTML = '<div class="leftbox good">'
+    + '<b style="color:var(--acc2)">✔ ' + files.length + '개 파일 생성</b>' + lines.join("") + '</div>';
+  toast(files.length + "개 언어 생성 완료");
+  save();
+};
+function preview(html){
+  var doc = '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0c1424}</style></head><body>' + html + '</body></html>';
+  $("#prev").srcdoc = doc;
+}
+$("#doPreview").onclick = function(){ preview($("#out").value); };
+$("#copyOut").onclick = function(){ if(!$("#out").value){toast("먼저 생성하세요");return;} copy($("#out").value); toast("결과 HTML 복사됨"); };
+$("#dlOut").onclick = function(){ if(!$("#out").value){toast("먼저 생성하세요");return;} dl($("#out").value, fileBase() + "_" + CUR + ".txt", "text/plain;charset=utf-8"); };
+
+/* ---- 언어/프로젝트 ---- */
+$("#addLang").onclick = function(){
+  var v = $("#newLang").value.trim().toUpperCase();
+  if (!v) return;
+  if (LANGS.indexOf(v) >= 0){ toast("이미 있는 언어입니다"); return; }
+  LANGS.push(v); CUR = v; $("#newLang").value = "";
+  save(); renderTable(); renderExtraLangs(); toast(v + " 추가됨");
+};
+function dropLang(L){
+  if (LANGS.indexOf(L) < 0) return;
+  for (var i=0;i<SEGS.length;i++) delete SEGS[i].tr[L];
+  delete RULES[L];
+  LANGS.splice(LANGS.indexOf(L), 1);
+  if (CUR === L) CUR = LANGS[0] || "";
+}
+$("#delLang").onclick = function(){
+  if (LANGS.length <= 1){ toast("최소 1개 언어는 필요합니다"); return; }
+  if (!confirm(langLabel(CUR) + " 언어와 해당 번역을 삭제합니다. 계속할까요?")) return;
+  dropLang(CUR);
+  save(); renderTable(); renderExtraLangs();
+};
+/* 기본 4개 언어(EN·DE·FR·JP) 밖의 언어가 남아 있으면 알려만 준다 — 조용히 지우지 않는다 */
+function renderExtraLangs(){
+  var extra = LANGS.filter(function(L){ return BASE_LANGS.indexOf(L) < 0; });
+  var missing = BASE_LANGS.filter(function(L){ return LANGS.indexOf(L) < 0; });
+  var h = "";
+  if (extra.length){
+    h += '<div class="leftbox"><b>기본 구성 밖의 언어 ' + extra.length + '개</b>';
+    for (var i=0;i<extra.length;i++)
+      h += '<div>· <b style="color:#fff">' + esc(extra[i]) + '</b> — 번역 ' + doneCount(extra[i]) + '개</div>';
+    h += '<div style="margin-top:var(--sp-2)"><button class="btn gh" id="tidyLang">EN·DE·FR·JP만 남기기</button></div></div>';
+  }
+  if (missing.length)
+    h += '<div class="leftbox" style="margin-top:var(--sp-2)"><b>빠져 있는 기본 언어</b><div>· ' + esc(missing.join(", "))
+      +  '</div><div style="margin-top:var(--sp-2)"><button class="btn gh" id="restoreLang">기본 언어 되돌리기</button></div></div>';
+  $("#extraLangBox").innerHTML = h;
+
+  var t = $("#tidyLang");
+  if (t) t.onclick = function(){
+    if (!confirm("EN·DE·FR·JP 외의 언어와 그 번역을 모두 삭제합니다. 계속할까요?")) return;
+    extra.forEach(dropLang);
+    if (BASE_LANGS.indexOf(CUR) < 0) CUR = LANGS[0] || "EN";
+    save(); renderTable(); renderExtraLangs(); toast("정리 완료");
+  };
+  var r = $("#restoreLang");
+  if (r) r.onclick = function(){
+    missing.forEach(function(L){ if (LANGS.indexOf(L) < 0) LANGS.push(L); });
+    LANGS.sort(function(a,b){
+      var ia = BASE_LANGS.indexOf(a), ib = BASE_LANGS.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    save(); renderTable(); renderExtraLangs(); toast("기본 언어 복원됨");
+  };
+}
+$("#saveProj").onclick = function(){
+  dl(JSON.stringify(snapshot(), null, 2), fileBase() + "_프로젝트_" + stamp() + ".json", "application/json");
+};
+$("#loadProj").onchange = function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try {
+      restore(JSON.parse(r.result)); save();
+      $("#src").value = SRC; srcInfo();
+      renderTable(); renderAllInfo(); renderExtraLangs();
+      toast("프로젝트 불러오기 완료");
+    } catch(err){ toast("파일을 읽을 수 없습니다"); }
+  };
+  r.readAsText(f, "utf-8");
+};
+$("#resetAll").onclick = function(){
+  if (!confirm("모든 작업 내용을 삭제합니다. 계속할까요?")) return;
+  localStorage.removeItem(KEY); location.reload();
+};
+
+/* ---- 저장/복원 ---- */
+function snapshot(){
+  var tr = [];
+  for (var i=0;i<SEGS.length;i++) tr.push({id:SEGS[i].id, o:SEGS[i].original, t:SEGS[i].tr});
+  return {v:2, src:SRC, langs:LANGS, cur:CUR, rules:RULES, opts:OPTS, fbase:FBASE, tr:tr};
+}
+function restore(d){
+  if (!d) return;
+  SRC = d.src || "";
+  LANGS = d.langs && d.langs.length ? d.langs : BASE_LANGS.slice();
+  CUR = d.cur && LANGS.indexOf(d.cur) >= 0 ? d.cur : LANGS[0];
+  RULES = d.rules || {};
+  OPTS = d.opts || OPTS;
+  FBASE = d.fbase || "";
+  $("#optAttr").checked = !!OPTS.attr; $("#optSync").checked = !!OPTS.sync; $("#optEsc").checked = !!OPTS.esc;
+  SEGS = SRC ? extract(SRC, OPTS) : [];
+  var byId = {}, i;
+  if (d.tr) for (i=0;i<d.tr.length;i++) byId[d.tr[i].id] = d.tr[i];
+  for (i=0;i<SEGS.length;i++){
+    var rec = byId[SEGS[i].id];
+    if (rec && rec.o === SEGS[i].original && rec.t) SEGS[i].tr = rec.t;
+  }
+  if (d.tr){ // ID가 어긋난 경우 원문으로 보정
+    var byO = {};
+    for (i=0;i<d.tr.length;i++) if (!byO[d.tr[i].o]) byO[d.tr[i].o] = d.tr[i].t;
+    for (i=0;i<SEGS.length;i++){
+      var empty = true;
+      for (var L in SEGS[i].tr){ if (SEGS[i].tr[L] && String(SEGS[i].tr[L]).trim()) { empty = false; break; } }
+      if (empty && byO[SEGS[i].original]) SEGS[i].tr = JSON.parse(JSON.stringify(byO[SEGS[i].original]));
+    }
+  }
+}
+var _t;
+function saveDebounced(){ clearTimeout(_t); _t = setTimeout(save, 500); }
+/* 자동 저장 실패를 조용히 삼키면 새로고침 때 작업이 통째로 사라진다. 반드시 눈에 띄게. */
+var SAVE_ERR = false;
+function save(){
+  var failed = false;
+  try { localStorage.setItem(KEY, JSON.stringify(snapshot())); }
+  catch(e){ failed = true; }
+  if (failed !== SAVE_ERR){ SAVE_ERR = failed; renderSaveWarn(); }
+}
+function renderSaveWarn(){
+  var b = $("#warnbar");
+  b.classList.toggle("on", SAVE_ERR);
+  if (SAVE_ERR) b.innerHTML = '<b>⚠ 브라우저 자동 저장이 실패했습니다.</b> 저장 공간이 가득 찼거나 시크릿 모드일 수 있습니다. '
+    + '지금 <b>프로젝트 탭 → [프로젝트 저장 (.json)]</b>으로 백업하세요. 이대로 새로고침하면 작업이 사라집니다.';
+}
+
+/* ---- 유틸 ---- */
+function copy(t){
+  var ta = document.createElement("textarea");
+  ta.value = t; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); } catch(e){}
+  document.body.removeChild(ta);
+}
+function dlBytes(bytes, name){
+  var b = new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 100);
+}
+function dl(text, name, mime){
+  var b = new Blob([text], {type: mime || "text/plain;charset=utf-8"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 100);
+}
+
+/* ---- 시작 ---- */
+try {
+  var saved = localStorage.getItem(KEY);
+  if (saved){ restore(JSON.parse(saved)); $("#src").value = SRC; srcInfo(); }
+} catch(e){}
+$("#optAttr").onchange = function(){ OPTS.attr = this.checked; };
+$("#optSync").onchange = function(){ OPTS.sync = this.checked; save(); };
+$("#optEsc").onchange  = function(){ OPTS.esc  = this.checked; save(); };
+renderTable();
+$("#rules").value = RULES[CUR] || "";
+renderRuleBar();
+renderAllInfo();
+renderExtraLangs();
+
+})();
+</script>
+</body>
+</html>
