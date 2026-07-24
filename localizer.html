@@ -147,10 +147,6 @@
   .chip.s i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;
             vertical-align:-1px;border:1px solid rgba(255,255,255,.35)}
   .seg .src .fmt{border-radius:3px;padding:0 1px}
-  .seg .src .ph, .al .k .ph{display:inline-block;background:rgba(78,203,207,.16);
-    border:1px solid rgba(78,203,207,.45);color:var(--acc);border-radius:3px;
-    padding:0 3px;margin:0 1px;font-size:var(--fs-xs);font-weight:800;
-    font-family:Consolas,monospace;vertical-align:1px}
 
   /* ===== 언어 진행률 카드 ===== */
   .langcards{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-2)}
@@ -379,7 +375,6 @@
       <li><b>한국어 원본 소스 붙여넣기</b> → [한국어 추출] 클릭</li>
       <li><b>번역 테이블</b> 탭 → [번역용 엑셀 받기] → 번역 담당자에게 그 파일을 전달</li>
       <li>담당자는 자기 <b>언어 열만</b> 채운다 — 첫 시트에 작업 안내가 있고, 원문 칸에는 원본의 굵게·글자색·형광이 그대로 보입니다</li>
-      <li>원문에 <code>&lt;1&gt;…&lt;/1&gt;</code> 번호표가 있으면 <b>서식이 들어갈 자리</b>입니다. 번역가가 문장 어디로든 옮길 수 있어 어순이 달라도 됩니다</li>
       <li>받은 표를 <b>[번역된 엑셀 적용]</b>으로 넣으면 ID·원문 대조로 <b>EN·DE·FR·JP가 한 번에</b> 제자리로 들어갑니다</li>
       <li>적용 직후 <b>[검수 필요만]</b>으로 한글 잔존·숫자 누락 같은 사고를 한 번 훑어봅니다</li>
       <li><b>결과 생성</b> 탭 → [전체 언어 생성]으로 4개 언어 txt를 zip 하나로 받습니다. 마크업·인라인스타일은 원본 그대로 보존되고, <b>번역이 빈 칸이면 그 자리도 빈 칸으로</b> 나갑니다.</li>
@@ -407,7 +402,6 @@
   <div class="card">
     <h2>추출 옵션</h2>
     <div class="row">
-      <label class="ck"><input type="checkbox" id="optMerge" checked /> 문장 단위로 합치기 (인라인 서식은 번호표로)</label>
       <label class="ck"><input type="checkbox" id="optAttr" checked /> 이미지 alt / title 속성도 추출</label>
       <label class="ck"><input type="checkbox" id="optSync" checked /> 동일 원문 자동 동기화 (같은 문구 한 번만 번역)</label>
       <label class="ck"><input type="checkbox" id="optEsc" /> 번역문 특수문자 자동 이스케이프 (&amp; → &amp;amp;)</label>
@@ -417,8 +411,8 @@
       · <code>&lt;style&gt;</code>·<code>&lt;script&gt;</code> 내부, HTML 주석, 기호/숫자만 있는 조각은 자동 제외됩니다.<br />
       · <span class="chip p">지역수정</span> = 형광(#ff11ff) 표시 안쪽 → 날짜·시간대처럼 지역별로 값 자체를 바꿔야 하는 구간<br />
       · <span class="chip r">삭제표시</span> = 취소선+#bc0c0c 표시 안쪽 → 타 지역 반출 시 제거 검토 대상<br />
-      · <b>문장 단위로 합치기</b>를 켜두면 문단 하나가 한 행으로 나가고 굵게·색은 <code>&lt;1&gt;…&lt;/1&gt;</code> 번호표가 됩니다.
-        번역가가 번호표를 옮겨 어순을 자유롭게 바꿀 수 있고, 문장 전체를 보고 번역하므로 품질도 올라갑니다. (2번 탭에 상세 설명)
+      · 굵게·색 구간은 그 <b>경계에서 행이 나뉩니다.</b> 원본을 쓸 때 <b style="color:var(--warn)">강조 구간을 문장 맨 앞이나 맨 끝에 두지 마세요</b> —
+        앞뒤에 일반 텍스트가 한 조각씩 있어야 번역 시 어순을 바꿀 수 있습니다. (자세한 설명은 2번 탭)
     </p>
   </div>
 </section>
@@ -436,7 +430,6 @@
   <div class="grid2">
     <div class="card step-a">
       <h2>① 번역용 엑셀 내보내기 <small>번역 담당자에게 이 파일을 전달</small></h2>
-      <div id="mergeHint"></div>
       <div class="row tight">
         <button class="btn pri" id="expXlsx">번역용 엑셀 받기 (.xlsx)</button>
         <label class="sr-only" for="xlScope">내보낼 언어 범위</label>
@@ -454,17 +447,18 @@
         시트 보호는 걸려 있지 않으니, <b style="color:var(--warn)">ID·원문 열이 수정되면 그 행은 되돌릴 때 건너뜁니다.</b>
       </p>
       <details style="margin-top:var(--sp-3)">
-        <summary class="hint" style="cursor:pointer">번호표 &lt;1&gt;&lt;/1&gt; 는 무엇인가 (어순이 다른 언어)</summary>
+        <summary class="hint" style="cursor:pointer">언어마다 어순이 다를 때 (굵게·색 구간이 있는 문장)</summary>
         <p class="hint" style="margin:var(--sp-2) 0 0">
-          문단 안이 굵게·색·링크 같은 인라인 서식뿐이면 <b>문단 전체가 한 행으로</b> 나가고,
-          안쪽 태그는 <code>&lt;1&gt;…&lt;/1&gt;</code> 번호표로 바뀝니다.<br />
-          예) <code>하이델 &lt;b&gt;연회&lt;/b&gt;에 참여하세요</code> → 원문 한 줄: <code>하이델 &lt;1&gt;연회&lt;/1&gt;에 참여하세요</code><br />
-          번역가는 번호표를 <b>문장 어디에 두든</b> 그 자리에 원래 태그가 복원됩니다.<br />
-          · <code>Join the Heidel &lt;1&gt;Ball&lt;/1&gt;</code> → <code>Join the Heidel &lt;b&gt;Ball&lt;/b&gt;</code><br />
-          · <code>&lt;1&gt;Ball&lt;/1&gt; of Heidel</code> → <code>&lt;b&gt;Ball&lt;/b&gt; of Heidel</code><br />
-          <b style="color:var(--acc2)">강조가 문장 맨 앞이든 맨 끝이든 상관없습니다.</b>
-          번호표가 빠지거나 짝이 안 맞으면 <b>검수의 「번호표 불일치」</b>에서 잡힙니다.<br />
-          <b>속성(alt/title)이 들어 있는 문단</b>은 태그 안에 갇혀 번역할 수 없게 되므로 합치지 않고 예전처럼 조각으로 나갑니다.
+          굵게·색이 들어간 문장은 그 구간을 경계로 <b>여러 행으로 쪼개집니다.</b>
+          결과는 <code>[1] &lt;b&gt;[2]&lt;/b&gt; [3]</code> 처럼 원본 순서 그대로 조립되지만,
+          <b>각 칸을 비우거나 몰아 쓰면 어순은 바꿀 수 있습니다.</b><br />
+          예) <code>하이델 &lt;b&gt;연회&lt;/b&gt;에 참여하세요</code> → 3행<br />
+          · <b>Ball</b>이 뒤로: <code>[1]="Join the Heidel" [2]="Ball" [3]=빈칸</code><br />
+          · <b>Ball</b>이 앞으로: <code>[1]=빈칸 [2]="Ball" [3]="of Heidel — join now"</code><br />
+          원본의 띄어쓰기는 칸 바깥에 남아 있으므로 <b>칸 앞뒤에 공백을 덧붙이지 않아도 됩니다.</b><br />
+          <b style="color:var(--warn)">단, 굵게 구간이 문장 맨 앞이나 맨 끝에 붙어 있으면 반대편으로 못 옮깁니다.</b>
+          옮길 칸 자체가 없어서, 전체가 굵어지거나 굵기가 사라집니다.
+          원본을 만들 때 <b>강조 구간 앞뒤에 일반 텍스트를 한 조각씩 남겨두면</b> 이 문제가 생기지 않습니다.
         </p>
       </details>
       <details style="margin-top:var(--sp-2)">
@@ -628,7 +622,7 @@ var SEGS = [];
 var LANGS = BASE_LANGS.slice();
 var CUR = "EN";
 var RULES = {};          // lang -> 후처리 규칙 텍스트
-var OPTS = {attr:true, sync:true, esc:false, merge:true};
+var OPTS = {attr:true, sync:true, esc:false};
 var FBASE = "";          // 결과 파일명 접두어
 var KEY = "pa_event_localizer_v1";
 
@@ -795,173 +789,13 @@ function tagStyle(tagStr, name){
 }
 function hasStyle(st){ return !!(st && (st.bold || st.color || st.bg)); }
 
-/* ---- 문장 합치기(번호표) ----
-   문단 안이 인라인 태그로만 되어 있으면 그 문단 전체를 한 행으로 내보내고,
-   안쪽 태그는 <1>...</1> 번호표로 바꿔서 보여준다. 번역가는 번호표를 문장 어디로든
-   옮길 수 있으므로 언어별 어순 차이를 그대로 표현할 수 있다.
-   문단 단위로 자르기 때문에 태그 짝은 항상 맞는다. */
+/* 글자에 직접 걸리는 인라인 요소들.
+   배경색을 '형광'으로 볼지 판단할 때 쓴다 — 블록 요소의 배경은 카드·패널 장식이다. */
 var INLINE = {
   b:1,strong:1,i:1,em:1,u:1,s:1,strike:1,span:1,a:1,font:1,mark:1,small:1,big:1,
   sub:1,sup:1,abbr:1,code:1,q:1,cite:1,ins:1,del:1,time:1,bdi:1,bdo:1,ruby:1,rt:1,rp:1,
   "var":1,samp:1,kbd:1,dfn:1
 };
-function isInlineTag(name, selfClose){ return selfClose || !!INLINE[name]; }
-
-/* 안쪽이 인라인 태그뿐인 블록의 내용 범위들.
-   각 범위의 baseSty 는 그 블록 바깥에서 이미 걸려 있는 서식이다.
-   (문단 안쪽 태그의 서식까지 기준으로 잡으면 문단 전체가 그 색으로 물든다) */
-function inlineRanges(src){
-  var out = [], stack = [], all = [], i = 0, n = src.length;
-  if (!CSSRULES.length) CSSRULES = parseStyleBlocks(src);
-  function taint(){ for (var z=0;z<stack.length;z++) stack[z].pure = false; }
-  function baseSty(){
-    var st = {bold:false, color:null, bg:null};
-    for (var z=0;z<all.length;z++){
-      var v = all[z].sty || {};
-      if (v.bold) st.bold = true;
-      if (v.color) st.color = v.color;
-      if (v.bg) st.bg = v.bg;
-    }
-    return st;
-  }
-
-  while (i < n){
-    var lt = src.indexOf("<", i);
-    if (lt < 0) break;
-    if (src.substr(lt,4) === "<!--"){                    // 주석은 문단을 가른다
-      var ce = src.indexOf("-->", lt);
-      taint();
-      i = (ce < 0) ? n : ce + 3;
-      continue;
-    }
-    var j = lt+1, q = null;
-    while (j < n){
-      var c = src.charAt(j);
-      if (q){ if (c === q) q = null; }
-      else if (c === '"' || c === "'") q = c;
-      else if (c === ">") break;
-      j++;
-    }
-    if (j >= n) break;
-    var tagStr = src.slice(lt, j+1);
-    var closing = tagStr.charAt(1) === "/";
-    var nm = /^<\/?\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagStr);
-    var name = nm ? nm[1].toLowerCase() : "";
-    var selfClose = /\/\s*>$/.test(tagStr) || !!VOID[name];
-    i = j+1;
-
-    if (RAWT[name] && !closing && !selfClose){           // script/style/textarea 안은 통째로 건너뛴다
-      taint();
-      var close = src.toLowerCase().indexOf("</"+name, i);
-      i = (close < 0) ? n : close;
-      continue;
-    }
-    // 서식 추적은 인라인·블록 모두 대상 (문단 바깥에서 걸린 색도 기준에 넣어야 한다)
-    if (!closing && !selfClose) all.push({name:name, sty:tagStyle(tagStr, name)});
-    else if (closing){
-      var ka = all.length-1;
-      while (ka >= 0 && all[ka].name !== name) ka--;
-      if (ka >= 0) all.length = ka;
-    }
-
-    if (isInlineTag(name, selfClose)) continue;          // 인라인은 문단을 가르지 않는다
-
-    if (!closing){
-      taint();                                           // 블록이 열리면 부모는 더 이상 순수 인라인이 아니다
-      stack.push({name:name, start:j+1, pure:true, base:baseSty()});
-    } else {
-      var k = stack.length-1;
-      while (k >= 0 && stack[k].name !== name) k--;
-      if (k >= 0){
-        if (stack[k].pure) out.push({s:stack[k].start, e:lt, base:stack[k].base});
-        stack.length = k;
-      }
-    }
-  }
-  return out;
-}
-
-/* 범위 안을 훑어 번호표 문자열과 태그 사전, 서식 구간을 만든다 */
-function makeTemplate(src, s, e, baseSty){
-  var i = s, num = 0, open = [], tags = {}, text = "", runs = [];
-  var styStack = [baseSty || {}];
-  function curSty(){
-    var st = {bold:false, color:null, bg:null};
-    for (var k=0;k<styStack.length;k++){
-      var v = styStack[k] || {};
-      if (v.bold) st.bold = true;
-      if (v.color) st.color = v.color;
-      if (v.bg) st.bg = v.bg;
-    }
-    return st;
-  }
-  function putText(t){ if (t){ text += t; runs.push({t:t, sty:curSty()}); } }
-  function putMark(m){ text += m; runs.push({t:m, mark:true}); }
-
-  while (i < e){
-    var lt = src.indexOf("<", i);
-    if (lt < 0 || lt >= e){ putText(src.slice(i, e)); break; }
-    if (lt > i) putText(src.slice(i, lt));
-
-    var j = lt+1, q = null;
-    while (j < e){
-      var c = src.charAt(j);
-      if (q){ if (c === q) q = null; }
-      else if (c === '"' || c === "'") q = c;
-      else if (c === ">") break;
-      j++;
-    }
-    if (j >= e){ putText(src.slice(lt, e)); break; }
-
-    var tagStr = src.slice(lt, j+1);
-    var closing = tagStr.charAt(1) === "/";
-    var nm = /^<\/?\s*([a-zA-Z][a-zA-Z0-9:-]*)/.exec(tagStr);
-    var name = nm ? nm[1].toLowerCase() : "";
-    var selfClose = /\/\s*>$/.test(tagStr) || !!VOID[name];
-
-    if (!closing){
-      num++;
-      if (selfClose){
-        tags[num] = {open:tagStr, close:"", v:true};
-        putMark("<"+num+"/>");
-      } else {
-        tags[num] = {open:tagStr, close:"</"+name+">"};
-        open.push({n:num, name:name});
-        styStack.push(tagStyle(tagStr, name));
-        putMark("<"+num+">");
-      }
-    } else {
-      var k2 = open.length-1;
-      while (k2 >= 0 && open[k2].name !== name) k2--;
-      if (k2 >= 0){
-        var fr = open.splice(k2,1)[0];
-        styStack.splice(k2+1, 1);
-        tags[fr.n].close = tagStr;
-        putMark("</"+fr.n+">");
-      }
-    }
-    i = j+1;
-  }
-  return {text:text, tags:tags, runs:runs};
-}
-
-/* 번역문의 번호표를 원래 태그로 되돌린다 */
-function expandTemplate(t, tags, escFn){
-  var re = /<(\/?)(\d+)(\/?)>/g, out = "", last = 0, m;
-  while ((m = re.exec(t))){
-    var plain = t.slice(last, m.index);
-    out += escFn ? escFn(plain) : plain;
-    var tag = tags[m[2]];
-    if (!tag) out += m[0];                       // 모르는 번호는 그대로 둬서 눈에 띄게
-    else if (m[3]) out += tag.open;              // <n/>
-    else if (m[1]) out += tag.close;             // </n>
-    else out += tag.open;                        // <n>
-    last = m.index + m[0].length;
-  }
-  var tail = t.slice(last);
-  return out + (escFn ? escFn(tail) : tail);
-}
-function phTokens(s){ return (String(s).match(/<\/?\d+\/?>/g) || []).slice().sort(); }
 
 function stripTags(s){
   return s.replace(/<!--[\s\S]*?-->/g,"")
@@ -1084,56 +918,10 @@ function extract(src, opts){
   for (var z=stack.length-1;z>=0;z--) closeFrame(stack[z], n);
 
   segs.sort(function(a,b){ return a.start - b.start; });
-  if (opts.merge) segs = mergeRuns(src, segs);
   for (var x=0;x<segs.length;x++){ segs[x].id = x+1; segs[x].ctx = groups[segs[x].gid] || ""; segs[x].tr = {}; }
   return segs;
 }
 
-/* 인라인뿐인 문단은 통째로 한 행으로 묶는다.
-   속성(alt/title) 조각이 그 안에 있으면 태그 문자열 안에 갇혀 번역할 수 없게 되므로 묶지 않는다. */
-function mergeRuns(src, segs){
-  var ranges = inlineRanges(src), out = [], used = {}, r, i;
-  ranges.sort(function(a,b){ return a.s - b.s; });
-
-  for (r=0;r<ranges.length;r++){
-    var s = ranges[r].s, e = ranges[r].e;
-    while (s < e && /\s/.test(src.charAt(s))) s++;          // 앞뒤 공백은 원본에 그대로 남긴다
-    while (e > s && /\s/.test(src.charAt(e-1))) e--;
-    if (e <= s) continue;
-
-    var inside = [], hasAttr = false;
-    for (i=0;i<segs.length;i++){
-      if (segs[i].start < s || segs[i].start >= e) continue;
-      if (used[i]) { inside = []; break; }
-      if (segs[i].type === "attr") hasAttr = true;
-      inside.push(i);
-    }
-    if (!inside.length || hasAttr) continue;
-
-    var tp = makeTemplate(src, s, e, ranges[r].base);
-    if (!tp.text.trim()) continue;
-    // 태그도 없고 조각도 하나면 지금과 똑같으므로 굳이 바꾸지 않는다
-    if (inside.length === 1 && tp.text === segs[inside[0]].original) continue;
-
-    var flags = [];
-    for (i=0;i<inside.length;i++){
-      var f = segs[inside[i]].flags;
-      for (var k=0;k<f.length;k++) if (flags.indexOf(f[k]) < 0) flags.push(f[k]);
-    }
-    for (i=0;i<inside.length;i++) used[inside[i]] = 1;
-
-    out.push({
-      type:"text", merged:true, start:s, end:e,
-      original:tp.text, tags:tp.tags, runs:tp.runs,
-      section:segs[inside[0]].section, flags:flags, sty:ranges[r].base || {},
-      gid:segs[inside[0]].gid
-    });
-  }
-
-  for (i=0;i<segs.length;i++) if (!used[i]) out.push(segs[i]);
-  out.sort(function(a,b){ return a.start - b.start; });
-  return out;
-}
 
 /* ============ 재조립 ============ */
 function escText(s){
@@ -1151,7 +939,6 @@ function build(lang){
     if (t === ""){
       // 빈칸 → 원문 자리를 비운다
     } else if (s.type === "attr") t = t.replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\r?\n/g," ");
-    else if (s.merged) t = expandTemplate(t, s.tags, OPTS.esc ? escText : null);   // 번호표 → 원래 태그
     else if (OPTS.esc) t = escText(t);
     out = out.slice(0, s.start) + t + out.slice(s.end);
   }
@@ -1325,11 +1112,6 @@ function newStyles(){
     return this.cache[key];
   };
 
-  /* 합쳐진 행 — 글꼴은 리치텍스트가 정하므로 배경만 잡아준다 */
-  S.srcFill = function(tone){
-    return (tone === "region") ? 6 : (tone === "strike" ? 7 : 3);
-  };
-
   S.xml = function(){
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -1346,35 +1128,13 @@ function newStyles(){
   return S;
 }
 
-/* 한 셀 안에서 구간마다 굵기·색을 다르게 하려면 리치텍스트(<r>)를 쓴다.
-   번호표는 회색으로 빼서 번역 대상이 아님을 눈으로 구분할 수 있게 한다. */
 /* 엑셀 셀 배경은 밝은 색이라, 원본이 흰 글자면 그대로 쓰면 안 보인다 */
 function xlReadable(color, bgHex){
   if (!color) return null;
   if (contrast(color, bgHex) >= 3) return color;
   return (relLum(bgHex) > 0.45) ? "1A1A1A" : "FFFFFF";
 }
-function xlRich(runs, strike, cellFill){
-  var out = "", i, bg = cellFill || "F2F2F2";
-  for (i=0;i<runs.length;i++){
-    var r = runs[i], pr = "";
-    if (r.mark) pr = '<color rgb="FF9C9C9C"/>';
-    else {
-      var st = r.sty || {};
-      if (st.bold) pr += "<b/>";
-      if (strike) pr += "<strike/>";
-      // 엑셀은 한 셀 안에서 구간별 배경색을 칠할 수 없다 → 형광 구간은 밑줄로 표시
-      if (st.bg) pr += '<u/>';
-      var col = xlReadable(st.color, st.bg || bg);
-      if (col) pr += '<color rgb="FF'+col+'"/>';
-    }
-    out += '<r><rPr>' + pr + '<sz val="10"/><rFont val="맑은 고딕"/></rPr>'
-         + '<t xml:space="preserve">' + xe(r.t) + '</t></r>';
-  }
-  return out;
-}
 function xlCell(ref, val, style){
-  if (val && val.rich) return '<c r="'+ref+'" s="'+style+'" t="inlineStr"><is>'+val.rich+'</is></c>';
   if (typeof val === "number") return '<c r="'+ref+'" s="'+style+'"><v>'+val+'</v></c>';
   if (val === "" || val == null) return '<c r="'+ref+'" s="'+style+'"/>';
   return '<c r="'+ref+'" s="'+style+'" t="inlineStr"><is><t xml:space="preserve">'+xe(val)+'</t></is></c>';
@@ -1432,20 +1192,17 @@ function guideSheet(langs, counts, total, sheetRows){
   row("굵게", "원본에서 굵게 처리된 문구입니다. 강조 의도가 있으니 번역문에서도 살려주세요.");
   row("글자색", "원본에서 색이 지정된 문구입니다. 셀 글자색이 원본과 같은 색입니다.");
   row("셀 배경색", "원본에서 배경색·형광으로 강조된 문구입니다. 셀 배경색이 원본과 같은 색입니다.");
-  row("밑줄", "한 칸 안에 여러 서식이 섞인 경우, 형광으로 강조된 구간은 밑줄로 표시했습니다. (엑셀은 칸 안의 일부만 배경색을 칠할 수 없습니다)");
   row("취소선", "삭제 검토 대상으로 표시된 문구입니다. 아래 범례를 봐주세요.");
   gap();
 
-  head("■ 번호표 <1> </1> 사용법  ★ 가장 중요");
-  row("", "원문에 <1>, </1> 같은 번호표가 보이면, 그 사이에 있는 글자가 원본에서 굵게·색·링크로 강조된 부분입니다. 번호표 자체는 화면에 나오지 않습니다.");
-  row("규칙", "번호표는 지우지도 바꾸지도 마시고, 원문에 있는 것을 번역문에도 똑같이 넣어주세요. 개수와 번호가 같아야 합니다.");
-  row("어순은 자유", "번호표를 문장의 어느 위치에 두셔도 됩니다. 놓은 자리에 그대로 서식이 들어갑니다. 한국어와 어순이 달라도 전혀 문제되지 않습니다.");
-  row("예: 원문", "하이델 <1>연회</1>에 참여하세요        (연회가 굵게 표시된 부분)");
-  row("예: 번역 A", "Join the Heidel <1>Ball</1>        →  Heidel 다음의 Ball 이 굵게");
-  row("예: 번역 B", "<1>Ball</1> of Heidel — join now        →  맨 앞의 Ball 이 굵게");
-  row("여러 개일 때", "<1>하이델</1> 연회는 <2>9월 1일</2>부터        번호마다 서식이 다릅니다. 각 번호를 알맞은 단어에 씌워주세요.");
-  row("<1/> 형태", "닫는 짝이 없는 번호표(<1/>)는 줄바꿈이나 이미지입니다. 위치만 적당한 곳에 그대로 옮겨주세요.");
-  row("주의", "번호표를 빠뜨리면 그 강조가 사라지고, 짝이 안 맞으면 서식이 깨집니다. 회수 후 자동 검사에서 잡히긴 하지만, 넣으실 때 확인해 주시면 가장 좋습니다.");
+  head("■ 한 문장이 여러 행으로 나뉜 경우 (어순이 다를 때)");
+  row("", "굵게·색이 들어간 문장은 그 구간을 경계로 여러 행으로 나뉩니다. 같은 문장에 속하는지는 '문맥' 열이 같은지로 확인하실 수 있습니다.");
+  row("", "각 칸의 내용은 자유롭게 옮겨 담으셔도 되고 비우셔도 됩니다. 어순이 한국어와 달라도 아래처럼 맞출 수 있습니다.");
+  row("예: 원문", "[1] 하이델    [2] 연회(굵게)    [3] 에 참여하세요        → 결과는 [1] <굵게>[2]</굵게> [3] 순서로 조립됩니다.");
+  row("예: 굵게가 뒤", "[1] \"Join the Heidel\"  /  [2] \"Ball\"  /  [3] 비움        → Join the Heidel <굵게>Ball</굵게>");
+  row("예: 굵게가 앞", "[1] 비움  /  [2] \"Ball\"  /  [3] \"of Heidel — join now\"        → <굵게>Ball</굵게> of Heidel — join now");
+  row("띄어쓰기", "칸 앞뒤에 공백을 넣지 마세요. 원본의 띄어쓰기는 칸 바깥에 그대로 남아 있어서, 공백을 더 넣으면 두 칸으로 벌어집니다.");
+  row("안 되는 경우", "굵게·색 구간이 문장의 맨 앞이나 맨 끝에 붙어 있으면 그 반대편으로는 옮길 수 없습니다. (옮길 칸 자체가 없기 때문입니다) 이런 항목을 만나시면 무리해서 맞추지 마시고, 회신하실 때 해당 ID를 알려주세요. 원본 구조를 고쳐서 다시 보내드리겠습니다.");
   gap();
 
   head("■ 표시 범례");
@@ -1496,10 +1253,8 @@ function xlsxBlob(langs, onlyEmpty){
     if (s.type === "attr") mark.push(s.attr);
 
     var tone = (s.flags.indexOf("strike") >= 0) ? "strike" : (s.flags.indexOf("region") >= 0 ? "region" : "");
-    var toneFill = (tone === "region") ? "F3E8FF" : (tone === "strike" ? "FFE3E6" : "F2F2F2");
-    var srcCell = s.merged ? {rich: xlRich(s.runs, tone === "strike", toneFill)} : s.original;
-    var r = {tone: tone, sty: s.sty, merged: !!s.merged, cells: [
-      s.id, s.section || "", mark.join("/"), srcCell,
+    var r = {tone: tone, sty: s.sty, cells: [
+      s.id, s.section || "", mark.join("/"), s.original,
       ctxOf(s)
     ]};
     for (j=0;j<langs.length;j++) r.cells.push(s.tr[langs[j]] || "");
@@ -1515,7 +1270,7 @@ function xlsxBlob(langs, onlyEmpty){
     var line = [], tone = rows[ri].tone;
     for (j=0;j<rows[ri].cells.length;j++){
       var fixed = j < nFixed, st;
-      if (j === SRC_COL) st = rows[ri].merged ? ST.srcFill(tone) : ST.src(rows[ri].sty, tone);
+      if (j === SRC_COL) st = ST.src(rows[ri].sty, tone);
       else if (tone === "region") st = fixed ? 6 : 8;
       else if (tone === "strike") st = fixed ? 7 : 9;
       else st = fixed ? 3 : 5;
@@ -1611,11 +1366,10 @@ function parseShared(xml){
   return out;
 }
 function norm(s){ return String(s == null ? "" : s).replace(/\s+/g," ").trim(); }
-/* 문맥이 원문과 사실상 같은 내용이면 보여줄 이유가 없다 (합친 행은 원문이 곧 문단 전체) */
+/* 문맥이 원문과 사실상 같은 내용이면 보여줄 이유가 없다 */
 function ctxOf(s){
   if (!s.ctx) return "";
-  var plain = norm(String(s.original).replace(/<\/?\d+\/?>/g, ""));
-  return (norm(s.ctx) === plain) ? "" : s.ctx;
+  return (norm(s.ctx) === norm(s.original)) ? "" : s.ctx;
 }
 
 /* 언어 열 헤더 → 언어 코드.  "EN (영어)" → EN,  "번역(DE)" → DE,  "ZH-TW" → ZH-TW */
@@ -1929,15 +1683,14 @@ $("#alHideEmpty").onchange = renderAlign;
 
 /* ============ 검수 ============ */
 /* 엑셀을 되돌린 직후 사고를 잡는다. 경고일 뿐 무엇도 막지 않는다. */
-var QA_LABEL = {kr:"한글 잔존", num:"숫자 누락", ent:"기호 누락", len:"길이 이상", tag:"태그 섞임", ph:"번호표 불일치"};
-var QA_ORDER = ["ph","kr","num","ent","tag","len"];
+var QA_LABEL = {kr:"한글 잔존", num:"숫자 누락", ent:"기호 누락", len:"길이 이상", tag:"태그 섞임"};
+var QA_ORDER = ["kr","num","ent","tag","len"];
 var QA_TIP = {
   kr:  "번역문에 한국어가 그대로 남아 있습니다",
   num: "원문에 있던 숫자가 번역문에 없습니다",
   ent: "원문에 있던 &기호가 번역문에 없습니다",
   len: "원문 대비 너무 길거나 너무 짧습니다",
-  tag: "번역문에 태그나 잘못된 &가 섞여 있습니다",
-  ph:  "원문의 <1> 같은 번호표가 번역문에 그대로 있지 않습니다 — 서식이 깨집니다"
+  tag: "번역문에 태그나 잘못된 &가 섞여 있습니다"
 };
 function noSpace(s){ return String(s).replace(/\s+/g,""); }
 function missingAll(list, t){
@@ -1950,8 +1703,6 @@ function qaOf(seg, lang){
   t = String(t);
   var o = seg.original, out = [];
 
-  // 번호표는 개수·종류가 원문과 정확히 같아야 한다
-  if (seg.merged && phTokens(o).join("|") !== phTokens(t).join("|")) out.push("ph");
   if (/[가-힣]/.test(t)) out.push("kr");
   var on = o.match(/\d+/g) || [];
   if (on.length && missingAll(on, t)) out.push("num");
@@ -2025,8 +1776,7 @@ function flagChips(f){
 function badTr(t){
   if (!t) return false;
   if (OPTS.esc) return false;
-  var v = String(t).replace(/<\/?\d+\/?>/g, "");        // 번호표는 정상 표기이므로 제외
-  return /<[a-zA-Z\/]/.test(v) || /&(?!(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/.test(v);
+  return /<[a-zA-Z\/]/.test(t) || /&(?!(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/.test(t);
 }
 /* 빈 화면 대신 지금 무엇을 하면 되는지 알려준다 */
 function emptyMsg(){
@@ -2083,16 +1833,6 @@ function styleCss(sty, strike){
   return css;
 }
 function srcHtml(s){
-  if (s.merged){
-    var strike = s.flags.indexOf("strike") >= 0, h = "";
-    for (var i=0;i<s.runs.length;i++){
-      var r = s.runs[i];
-      if (r.mark){ h += '<span class="ph">' + esc(r.t) + '</span>'; continue; }
-      var css = styleCss(r.sty || {}, strike);
-      h += css ? '<span class="fmt" style="'+css+'">' + esc(r.t) + '</span>' : esc(r.t);
-    }
-    return h;
-  }
   var t = esc(s.original), sty = s.sty || {}, css = "";
   if (sty.bold) css += "font-weight:800;";
 
@@ -2112,23 +1852,6 @@ function srcHtml(s){
 }
 /* 색이 어두워 배경에 묻히는 경우가 있으므로 색상 견본 칩을 따로 붙인다 */
 function styleChips(s){
-  if (s.merged){
-    var base = s.sty || {}, seen = {}, out = "", i;
-    for (i=0;i<s.runs.length;i++){
-      var r = s.runs[i];
-      if (r.mark) continue;
-      var st = r.sty || {}, d = {};
-      if (st.bold && !base.bold) d.bold = true;
-      if (st.color && st.color !== base.color) d.color = st.color;
-      if (st.bg && st.bg !== base.bg) d.bg = st.bg;
-      if (!hasStyle(d)) continue;                    // 문단 기준 서식과 같으면 강조가 아니다
-      var k = (d.bold?"B":"") + "|" + (d.color||"") + "|" + (d.bg||"");
-      if (seen[k]) continue;
-      seen[k] = 1;
-      out += styleChips({sty:d, flags:[]});
-    }
-    return out;
-  }
   var sty = s.sty || {}, h = "";
   if (sty.bold) h += ' <span class="chip s" title="원본에서 굵게 처리된 문구">굵게</span>';
   if (sty.color) h += ' <span class="chip s" title="원본 글자색"><i style="background:#'+sty.color+'"></i>#'+sty.color+'</span>';
@@ -2175,7 +1898,6 @@ function renderTable(){
   renderStat();
   renderLangs();
   renderRuleBar();
-  renderMergeHint();
   renderQaBar();
   refreshSteps();
 }
@@ -2258,7 +1980,7 @@ function runExtract(){
 }
 $("#doExtract").onclick = function(){
   OPTS.attr = $("#optAttr").checked; OPTS.sync = $("#optSync").checked;
-  OPTS.esc = $("#optEsc").checked; OPTS.merge = $("#optMerge").checked;
+  OPTS.esc = $("#optEsc").checked;
   runExtract();
 };
 
@@ -2564,41 +2286,6 @@ function renderAllInfo(){
 }
 /* 후처리 규칙은 언어별로 따로 저장된다 — 지금 어느 언어를 편집 중인지 항상 보이게 */
 function hasRule(L){ return !!(RULES[L] && RULES[L].trim()); }
-/* 문장 합치기가 꺼진 채로 내보내면 번호표가 안 나온다.
-   예전에 저장된 프로젝트는 저장 당시 설정을 유지하므로 이 상태를 눈에 보이게 알려준다. */
-var _mp = null;
-function mergeGain(){
-  if (!SRC || !SEGS.length || OPTS.merge) return 0;
-  var key = SRC.length + "|" + SEGS.length + "|" + (OPTS.attr?1:0);
-  if (_mp && _mp.key === key) return _mp.gain;
-  var n = 0;
-  try { n = SEGS.length - extract(SRC, {attr:OPTS.attr, sync:OPTS.sync, esc:OPTS.esc, merge:true}).length; }
-  catch(e){ n = 0; }
-  _mp = {key:key, gain:n};
-  return n;
-}
-function renderMergeHint(){
-  var box = $("#mergeHint"), gain = mergeGain();
-  if (gain <= 0){ box.innerHTML = ""; return; }
-  box.innerHTML = '<div class="leftbox" style="margin-bottom:var(--sp-3)">'
-    + '<b>번호표 &lt;1&gt;이 안 보이시나요? — 「문장 합치기」가 꺼져 있습니다</b>'
-    + '<div>지금은 한 문장이 굵게·색 경계에서 조각나 있어서, 번역가가 문장 전체를 볼 수 없고 어순도 바꿀 수 없습니다. '
-    + '켜면 <b>' + gain + '개 항목이 줄어들며</b> 서식 자리에 <code>&lt;1&gt;…&lt;/1&gt;</code> 번호표가 붙습니다.</div>'
-    + '<div style="margin-top:var(--sp-2)"><button class="btn" id="turnOnMerge">문장 합치기 켜고 다시 추출</button></div></div>';
-  $("#turnOnMerge").onclick = function(){
-    var done = 0, i, L;
-    for (i=0;i<SEGS.length;i++)
-      for (L in SEGS[i].tr){ if (SEGS[i].tr[L] && String(SEGS[i].tr[L]).trim()){ done++; break; } }
-    if (done && !confirm(
-        "항목이 다시 나뉘면서 ID와 원문이 달라집니다.\n"
-      + "지금 입력된 번역 " + done + "개 중 상당수가 사라질 수 있습니다.\n\n"
-      + "먼저 프로젝트 탭에서 백업하시길 권합니다. 계속할까요?")) return;
-    OPTS.merge = true;
-    $("#optMerge").checked = true;
-    _mp = null;
-    runExtract();
-  };
-}
 function renderRuleBar(){
   var h = "", i;
   for (i=0;i<LANGS.length;i++){
@@ -2748,7 +2435,7 @@ function restore(d){
   OPTS = d.opts || OPTS;
   FBASE = d.fbase || "";
   $("#optAttr").checked = !!OPTS.attr; $("#optSync").checked = !!OPTS.sync;
-  $("#optEsc").checked = !!OPTS.esc; $("#optMerge").checked = !!OPTS.merge;
+  $("#optEsc").checked = !!OPTS.esc;
   SEGS = SRC ? extract(SRC, OPTS) : [];
   var byId = {}, i;
   if (d.tr) for (i=0;i<d.tr.length;i++) byId[d.tr[i].id] = d.tr[i];
@@ -2817,24 +2504,6 @@ try {
 $("#optAttr").onchange = function(){ OPTS.attr = this.checked; };
 $("#optSync").onchange = function(){ OPTS.sync = this.checked; save(); };
 $("#optEsc").onchange  = function(){ OPTS.esc  = this.checked; save(); };
-/* 합치기를 켜고 끄면 항목이 통째로 다시 나뉜다 → ID·원문이 달라져 기존 번역을 잃는다.
-   이미 번역한 게 있으면 반드시 먼저 물어본다. */
-$("#optMerge").onchange = function(){
-  var done = 0;
-  for (var i=0;i<SEGS.length;i++)
-    for (var L in SEGS[i].tr){ if (SEGS[i].tr[L] && String(SEGS[i].tr[L]).trim()){ done++; break; } }
-
-  if (done && !confirm(
-      "문장 나누는 방식이 바뀌면 항목이 다시 쪼개져서 ID와 원문이 달라집니다.\n"
-    + "지금 입력된 번역 " + done + "개는 다시 [한국어 추출]을 누르는 순간 사라질 수 있습니다.\n\n"
-    + "먼저 프로젝트 탭에서 백업하시는 것을 권합니다. 그래도 바꾸시겠습니까?")){
-    this.checked = !this.checked;
-    return;
-  }
-  OPTS.merge = this.checked;
-  save();
-  if (SEGS.length) toast("[한국어 추출]을 다시 눌러야 반영됩니다");
-};
 renderTable();
 $("#rules").value = RULES[CUR] || "";
 renderRuleBar();
