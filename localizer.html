@@ -436,6 +436,7 @@
   <div class="grid2">
     <div class="card step-a">
       <h2>① 번역용 엑셀 내보내기 <small>번역 담당자에게 이 파일을 전달</small></h2>
+      <div id="mergeHint"></div>
       <div class="row tight">
         <button class="btn pri" id="expXlsx">번역용 엑셀 받기 (.xlsx)</button>
         <label class="sr-only" for="xlScope">내보낼 언어 범위</label>
@@ -2174,6 +2175,7 @@ function renderTable(){
   renderStat();
   renderLangs();
   renderRuleBar();
+  renderMergeHint();
   renderQaBar();
   refreshSteps();
 }
@@ -2232,11 +2234,9 @@ function srcInfo(){
 }
 $("#src").oninput = srcInfo;
 
-$("#doExtract").onclick = function(){
+function runExtract(){
   var v = $("#src").value;
   if (!v.trim()){ toast("원본 소스를 먼저 넣어주세요"); return; }
-  OPTS.attr = $("#optAttr").checked; OPTS.sync = $("#optSync").checked;
-  OPTS.esc = $("#optEsc").checked; OPTS.merge = $("#optMerge").checked;
 
   var old = {};
   for (var i=0;i<SEGS.length;i++) old[SEGS[i].original] = SEGS[i].tr;
@@ -2255,6 +2255,11 @@ $("#doExtract").onclick = function(){
   save();
   toast("추출 완료: " + SEGS.length + "개" + (reused ? " (기존 번역 " + reused + "개 복원)" : ""));
   goStep(2);
+}
+$("#doExtract").onclick = function(){
+  OPTS.attr = $("#optAttr").checked; OPTS.sync = $("#optSync").checked;
+  OPTS.esc = $("#optEsc").checked; OPTS.merge = $("#optMerge").checked;
+  runExtract();
 };
 
 $("#langcards").onclick = function(e){
@@ -2559,6 +2564,41 @@ function renderAllInfo(){
 }
 /* 후처리 규칙은 언어별로 따로 저장된다 — 지금 어느 언어를 편집 중인지 항상 보이게 */
 function hasRule(L){ return !!(RULES[L] && RULES[L].trim()); }
+/* 문장 합치기가 꺼진 채로 내보내면 번호표가 안 나온다.
+   예전에 저장된 프로젝트는 저장 당시 설정을 유지하므로 이 상태를 눈에 보이게 알려준다. */
+var _mp = null;
+function mergeGain(){
+  if (!SRC || !SEGS.length || OPTS.merge) return 0;
+  var key = SRC.length + "|" + SEGS.length + "|" + (OPTS.attr?1:0);
+  if (_mp && _mp.key === key) return _mp.gain;
+  var n = 0;
+  try { n = SEGS.length - extract(SRC, {attr:OPTS.attr, sync:OPTS.sync, esc:OPTS.esc, merge:true}).length; }
+  catch(e){ n = 0; }
+  _mp = {key:key, gain:n};
+  return n;
+}
+function renderMergeHint(){
+  var box = $("#mergeHint"), gain = mergeGain();
+  if (gain <= 0){ box.innerHTML = ""; return; }
+  box.innerHTML = '<div class="leftbox" style="margin-bottom:var(--sp-3)">'
+    + '<b>번호표 &lt;1&gt;이 안 보이시나요? — 「문장 합치기」가 꺼져 있습니다</b>'
+    + '<div>지금은 한 문장이 굵게·색 경계에서 조각나 있어서, 번역가가 문장 전체를 볼 수 없고 어순도 바꿀 수 없습니다. '
+    + '켜면 <b>' + gain + '개 항목이 줄어들며</b> 서식 자리에 <code>&lt;1&gt;…&lt;/1&gt;</code> 번호표가 붙습니다.</div>'
+    + '<div style="margin-top:var(--sp-2)"><button class="btn" id="turnOnMerge">문장 합치기 켜고 다시 추출</button></div></div>';
+  $("#turnOnMerge").onclick = function(){
+    var done = 0, i, L;
+    for (i=0;i<SEGS.length;i++)
+      for (L in SEGS[i].tr){ if (SEGS[i].tr[L] && String(SEGS[i].tr[L]).trim()){ done++; break; } }
+    if (done && !confirm(
+        "항목이 다시 나뉘면서 ID와 원문이 달라집니다.\n"
+      + "지금 입력된 번역 " + done + "개 중 상당수가 사라질 수 있습니다.\n\n"
+      + "먼저 프로젝트 탭에서 백업하시길 권합니다. 계속할까요?")) return;
+    OPTS.merge = true;
+    $("#optMerge").checked = true;
+    _mp = null;
+    runExtract();
+  };
+}
 function renderRuleBar(){
   var h = "", i;
   for (i=0;i<LANGS.length;i++){
