@@ -678,6 +678,15 @@ function toHex(v){
   }
   return CSS_NAMED[s] || null;
 }
+/* 배경색으로 인정할 값만 통과시킨다 — 투명·완전투명 rgba 는 형광이 아니다 */
+function bgColor(v){
+  var s = String(v).trim().toLowerCase();
+  if (!s || s === "transparent" || s === "none" || s === "initial" || s === "inherit") return null;
+  var m = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)$/.exec(s);
+  if (m && parseFloat(m[1]) < 0.15) return null;        // 거의 투명하면 무시
+  return toHex(s);
+}
+
 /* CSS 선언 묶음 → {bold, color, bg} */
 function readDecls(css, out){
   out = out || {bold:false, color:null, bg:null};
@@ -688,10 +697,12 @@ function readDecls(css, out){
     var p = decls[i].slice(0,c).trim().toLowerCase();
     var v = decls[i].slice(c+1).replace(/!important/i,"").trim();
     if (p === "color") out.color = toHex(v) || out.color;
-    else if (p === "background-color") out.bg = toHex(v) || out.bg;
+    else if (p === "background-color") out.bg = bgColor(v) || out.bg;
     else if (p === "background"){                       // background: #ff0 no-repeat 처럼 섞여 있는 경우
-      var toks = v.split(/\s+/);
-      for (var k=0;k<toks.length;k++){ var hx = toHex(toks[k]); if (hx){ out.bg = hx; break; } }
+      if (!/gradient\(|url\(/i.test(v)){                // 그라데이션·이미지는 형광이 아니다
+        var toks = v.split(/\s+/);
+        for (var k=0;k<toks.length;k++){ var hx = bgColor(toks[k]); if (hx){ out.bg = hx; break; } }
+      }
     }
     else if (p === "font-weight"){
       if (/^(bold|bolder|[6-9]00)$/i.test(v)) out.bold = true;
@@ -775,6 +786,10 @@ function tagStyle(tagStr, name){
 
   var fc = /^<font[^>]*\scolor\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tagStr);   // 레거시 <font color=...>
   if (fc) out.color = toHex(fc[2] !== undefined ? fc[2] : fc[3]) || out.color;
+
+  // div·p 같은 블록의 배경은 카드·패널 장식이지 글자 형광이 아니다.
+  // 형광으로 인정하는 건 span·mark 같은 인라인 요소에 걸린 배경뿐.
+  if (out.bg && !INLINE[name]) out.bg = null;
   return out;
 }
 function hasStyle(st){ return !!(st && (st.bold || st.color || st.bg)); }
@@ -1000,8 +1015,11 @@ function extract(src, opts){
       var val = (m[3] !== undefined) ? m[3] : m[4];
       if (!val || !hasLetters(val)) continue;
       var vs = base + m.index + m[0].indexOf(m[2]) + 1;
+      // alt·title 은 화면에 보이지 않으므로 형광(배경색)이 있을 수 없다.
+      // 아이콘을 감싼 박스의 배경이 딸려오는 것을 막는다.
+      var ast = styleAt(); ast.bg = null;
       segs.push({type:"attr", attr:m[1].toLowerCase(), start:vs, end:vs+val.length,
-                 original:val, section:section, flags:flags(), sty:styleAt(), gid:-1});
+                 original:val, section:section, flags:flags(), sty:ast, gid:-1});
     }
   }
   function closeFrame(f, endIdx){
