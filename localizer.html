@@ -143,6 +143,10 @@
   .chip.r{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.45);color:var(--red)}
   .chip.p{background:rgba(180,124,255,.14);border-color:rgba(180,124,255,.45);color:var(--pur)}
   .chip.q{background:rgba(255,190,59,.14);border-color:rgba(255,190,59,.5);color:var(--warn);cursor:help}
+  .chip.s{background:rgba(255,255,255,.06);border-color:var(--line2);color:var(--dim)}
+  .chip.s i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;
+            vertical-align:-1px;border:1px solid rgba(255,255,255,.35)}
+  .seg .src .fmt{border-radius:3px;padding:0 1px}
 
   /* ===== 언어 진행률 카드 ===== */
   .langcards{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-2)}
@@ -370,10 +374,10 @@
     <ol>
       <li><b>한국어 원본 소스 붙여넣기</b> → [한국어 추출] 클릭</li>
       <li><b>번역 테이블</b> 탭 → [번역용 엑셀 받기] → 번역 담당자에게 그 파일을 전달</li>
-      <li>담당자는 자기 <b>언어 열만</b> 채운다 — ID·원문 열은 시트 보호로 잠겨 있고, 첫 시트에 작업 안내가 들어 있습니다</li>
+      <li>담당자는 자기 <b>언어 열만</b> 채운다 — 첫 시트에 작업 안내가 있고, 원문 칸에는 원본의 굵게·글자색·형광이 그대로 보입니다</li>
       <li>받은 표를 <b>[번역된 엑셀 적용]</b>으로 넣으면 ID·원문 대조로 <b>EN·DE·FR·JP가 한 번에</b> 제자리로 들어갑니다</li>
       <li>적용 직후 <b>[검수 필요만]</b>으로 한글 잔존·숫자 누락 같은 사고를 한 번 훑어봅니다</li>
-      <li><b>결과 생성</b> 탭 → [전체 언어 생성]으로 4개 언어 txt를 zip 하나로 받습니다. 마크업·인라인스타일은 원본 그대로 보존됩니다.</li>
+      <li><b>결과 생성</b> 탭 → [전체 언어 생성]으로 4개 언어 txt를 zip 하나로 받습니다. 마크업·인라인스타일은 원본 그대로 보존되고, <b>번역이 빈 칸이면 그 자리도 빈 칸으로</b> 나갑니다.</li>
       <li>작업물은 브라우저에 자동 저장되며, <b>프로젝트</b> 탭에서 JSON으로 백업할 수 있습니다.</li>
     </ol>
     <p class="hint" style="margin:.8rem 0 0;border-top:1px solid var(--line);padding-top:.6rem">
@@ -435,9 +439,10 @@
       </div>
       <p class="hint" style="margin:var(--sp-3) 0 0">
         <b>「번역 안내」 시트</b>(작업 방법·금지 사항·범례)와 <b>「번역」 시트</b> 두 장으로 만들어집니다.<br />
-        번역 시트는 <code>ID · 구역 · 표시 · 원문(KR) · 글자수 · 유지요소 · 문맥</code> 뒤에 언어 열이 붙고,
-        <b style="color:var(--acc2)">언어 열만 편집 가능하도록 잠겨</b> 나갑니다. ID·원문이 지켜져야 되돌릴 때 제자리를 찾습니다.<br />
-        지역수정 행은 <span class="chip p">보라</span>, 삭제표시 행은 <span class="chip r">분홍</span> 배경으로 구분됩니다.
+        번역 시트는 <code>ID · 구역 · 표시 · 원문(KR) · 문맥</code> 뒤에 언어 열이 붙습니다.
+        <b style="color:var(--acc2)">원문 칸에 원본의 굵게·글자색·형광이 그대로 입혀져</b> 나가서, 담당자가 강조 의도를 보고 번역할 수 있습니다.<br />
+        지역수정 행은 <span class="chip p">보라</span>, 삭제표시 행은 <span class="chip r">분홍</span> 배경입니다.
+        시트 보호는 걸려 있지 않으니, <b style="color:var(--warn)">ID·원문 열이 수정되면 그 행은 되돌릴 때 건너뜁니다.</b>
       </p>
       <details style="margin-top:var(--sp-3)">
         <summary class="hint" style="cursor:pointer">다른 형식 (TSV / CSV / JSON)</summary>
@@ -628,6 +633,59 @@ function hasLetters(s){
 function hasAlnum(s){
   return /[0-9A-Za-z]/.test(String(s).replace(/&[a-zA-Z#0-9]+;/g," "));
 }
+/* ---- 원본의 글자 서식(볼드·글자색·형광) 읽기 ---- */
+var CSS_NAMED = {
+  red:"FF0000", blue:"0000FF", green:"008000", yellow:"FFFF00", white:"FFFFFF", black:"000000",
+  orange:"FFA500", purple:"800080", magenta:"FF00FF", fuchsia:"FF00FF", pink:"FFC0CB",
+  gray:"808080", grey:"808080", lime:"00FF00", cyan:"00FFFF", aqua:"00FFFF",
+  navy:"000080", teal:"008080", silver:"C0C0C0", maroon:"800000", olive:"808000", gold:"FFD700"
+};
+function toHex(v){
+  if (!v) return null;
+  var s = String(v).trim().toLowerCase(), m;
+  if ((m = /^#([0-9a-f]{3})$/.exec(s)))
+    return (m[1].charAt(0)+m[1].charAt(0)+m[1].charAt(1)+m[1].charAt(1)+m[1].charAt(2)+m[1].charAt(2)).toUpperCase();
+  if ((m = /^#([0-9a-f]{6})$/.exec(s))) return m[1].toUpperCase();
+  if ((m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(s))){
+    var h = "";
+    for (var i=1;i<=3;i++){
+      var n = Math.max(0, Math.min(255, parseInt(m[i],10))).toString(16);
+      h += (n.length < 2 ? "0" : "") + n;
+    }
+    return h.toUpperCase();
+  }
+  return CSS_NAMED[s] || null;
+}
+/* 여는 태그 하나에서 서식을 읽는다 (프레임을 스택에 넣을 때 한 번만 계산) */
+function tagStyle(tagStr, name){
+  var out = {bold:false, color:null, bg:null};
+  if (name === "b" || name === "strong") out.bold = true;
+  if (name === "mark") out.bg = "FFFF00";
+
+  var sm = /\sstyle\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tagStr);
+  var css = sm ? (sm[2] !== undefined ? sm[2] : sm[3]) : "";
+  if (css){
+    var decls = css.split(";");
+    for (var i=0;i<decls.length;i++){
+      var c = decls[i].indexOf(":");
+      if (c < 0) continue;
+      var p = decls[i].slice(0,c).trim().toLowerCase();
+      var v = decls[i].slice(c+1).trim();
+      if (p === "color") out.color = toHex(v) || out.color;
+      else if (p === "background-color") out.bg = toHex(v) || out.bg;
+      else if (p === "background"){                       // background: #ff0 no-repeat 처럼 섞여 있는 경우
+        var toks = v.split(/\s+/);
+        for (var k=0;k<toks.length;k++){ var hx = toHex(toks[k]); if (hx){ out.bg = hx; break; } }
+      }
+      else if (p === "font-weight" && /^(bold|bolder|[6-9]00)$/i.test(v)) out.bold = true;
+    }
+  }
+  var fc = /^<font[^>]*\scolor\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tagStr);   // 레거시 <font color=...>
+  if (fc) out.color = toHex(fc[2] !== undefined ? fc[2] : fc[3]) || out.color;
+  return out;
+}
+function hasStyle(st){ return !!(st && (st.bold || st.color || st.bg)); }
+
 function stripTags(s){
   return s.replace(/<!--[\s\S]*?-->/g,"")
           .replace(/<[^>]*>/g," ")
@@ -642,11 +700,23 @@ function extract(src, opts){
   function flags(){
     var f = [];
     for (var k=0;k<stack.length;k++){
-      var t = stack[k].tag;
+      var t = stack[k].tag.toLowerCase();      // #FF11FF 처럼 대문자로 써도 잡히도록
       if (t.indexOf("ff11ff") >= 0 && f.indexOf("region") < 0) f.push("region");
       if (t.indexOf("bc0c0c") >= 0 && f.indexOf("strike") < 0) f.push("strike");
     }
     return f;
+  }
+  /* 조상 태그들의 서식을 합친다 — 안쪽에 있는 값이 이긴다 */
+  function styleAt(){
+    var st = {bold:false, color:null, bg:null};
+    for (var k=0;k<stack.length;k++){
+      var s = stack[k].sty;
+      if (!s) continue;
+      if (s.bold) st.bold = true;
+      if (s.color) st.color = s.color;
+      if (s.bg) st.bg = s.bg;
+    }
+    return st;
   }
   function pushText(s,e){
     if (e <= s) return;
@@ -657,7 +727,7 @@ function extract(src, opts){
     // 글자가 없어도 형광(#ff11ff)·취소선 표시 안쪽이면 지역별 수정 대상이므로 살린다 (예: "7~8", "1", "07:00")
     if (!hasLetters(core) && !(f.length && hasAlnum(core))) return;
     segs.push({type:"text", start:s+m[1].length, end:s+m[1].length+core.length,
-               original:core, section:section, flags:f, gid:-1});
+               original:core, section:section, flags:f, sty:styleAt(), gid:-1});
   }
   function pushAttrs(tagStr, base){
     ATTRS.lastIndex = 0; var m;
@@ -666,7 +736,7 @@ function extract(src, opts){
       if (!val || !hasLetters(val)) continue;
       var vs = base + m.index + m[0].indexOf(m[2]) + 1;
       segs.push({type:"attr", attr:m[1].toLowerCase(), start:vs, end:vs+val.length,
-                 original:val, section:section, flags:flags(), gid:-1});
+                 original:val, section:section, flags:flags(), sty:styleAt(), gid:-1});
     }
   }
   function closeFrame(f, endIdx){
@@ -710,7 +780,8 @@ function extract(src, opts){
 
     if (!closing){
       if (opts.attr) pushAttrs(tagStr, lt);
-      if (name && !selfClose) stack.push({name:name, tag:tagStr, segStart:segs.length, contentStart:j+1});
+      if (name && !selfClose) stack.push({name:name, tag:tagStr, sty:tagStyle(tagStr, name),
+                                          segStart:segs.length, contentStart:j+1});
     } else if (name){
       var k2 = stack.length-1;
       while (k2 >= 0 && stack[k2].name !== name) k2--;
@@ -737,17 +808,18 @@ function extract(src, opts){
 function escText(s){
   return s.replace(/&(?!(#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
+/* 한국어와 1:1로 대응되지 않는 항목이 있으므로, 번역이 비어 있으면
+   한국어를 그대로 남기지 않고 빈칸으로 둔다. (담당자가 일부러 비운 칸을 존중) */
 function build(lang){
-  var list = [], i;
-  for (i=0;i<SEGS.length;i++){
-    var v = SEGS[i].tr[lang];
-    if (v !== undefined && v !== null && String(v).trim() !== "") list.push(SEGS[i]);
-  }
+  var list = SEGS.slice(), i;
   list.sort(function(a,b){ return b.start - a.start; });
   var out = SRC;
   for (i=0;i<list.length;i++){
-    var s = list[i], t = String(s.tr[lang]);
-    if (s.type === "attr") t = t.replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\r?\n/g," ");
+    var s = list[i], v = s.tr[lang];
+    var t = (v === undefined || v === null || String(v).trim() === "") ? "" : String(v);
+    if (t === ""){
+      // 빈칸 → 원문 자리를 비운다
+    } else if (s.type === "attr") t = t.replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/\r?\n/g," ");
     else if (OPTS.esc) t = escText(t);
     out = out.slice(0, s.start) + t + out.slice(s.end);
   }
@@ -848,67 +920,92 @@ function xu(s){
 }
 function colL(n){ var s=""; while(n>0){ var m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
 
-var XL_FIXED = ["ID","구역","표시","원문(KR)","글자수","유지요소","문맥"];
-var XL_SHEET = "번역";
+var XL_FIXED  = ["ID","구역","표시","원문(KR)","문맥"];
+var XL_IGNORE = XL_FIXED.concat(["글자수","유지요소"]);   // 옛 템플릿의 열도 언어 열로 오인하지 않게
+var XL_SHEET  = "번역";
 
-/* 번역해도 그대로 남아야 하는 것들 — 숫자·HTML 엔티티·라틴 토큰 */
-function keepTokens(s){
-  var t = String(s), seen = {}, out = [], i;
-  var ents = t.match(/&[a-zA-Z][a-zA-Z0-9]*;|&#[0-9]+;/g) || [];
-  var rest = t.replace(/&[a-zA-Z][a-zA-Z0-9]*;|&#[0-9]+;/g, " ");  // 엔티티 속 글자가 다시 잡히지 않게
-  var pools = [ ents,
-                rest.match(/\d+(?:[.,:]\d+)*%?/g) || [],
-                rest.match(/[A-Za-z][A-Za-z0-9+]+/g) || [] ];
-  for (i=0;i<pools.length;i++) for (var j=0;j<pools[i].length;j++){
-    var v = pools[i][j];
-    if (!seen[v]){ seen[v] = 1; out.push(v); }
-  }
-  return out;
+function xlFill(argb){
+  return '<fill><patternFill patternType="solid"><fgColor rgb="'+argb+'"/><bgColor indexed="64"/></patternFill></fill>';
 }
 
-/* 스타일 인덱스
-   0 기본 · 1 헤더(고정열) · 2 헤더(언어열) · 3 고정열 · 4 ID/글자수(가운데)
-   5 언어열(편집) · 6 고정열-지역수정 · 7 고정열-삭제표시 · 8 언어열-지역수정 · 9 언어열-삭제표시
+/* 스타일 레지스트리
+   원본의 볼드·글자색·형광 조합은 미리 알 수 없으므로, 실제 쓰인 조합만 그때그때 만들어 붙인다.
+   고정 인덱스: 0 기본 · 1 헤더(고정열) · 2 헤더(언어열) · 3 고정열 · 4 ID(가운데)
+   5 언어열 · 6 고정열-지역수정 · 7 고정열-삭제표시 · 8 언어열-지역수정 · 9 언어열-삭제표시
    10 안내-제목 · 11 안내-소제목 · 12 안내-본문 · 13 안내-흐린글씨 */
-var XL_STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-  + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-  + '<fonts count="5">'
-  +   '<font><sz val="10"/><name val="맑은 고딕"/></font>'
-  +   '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font>'
-  +   '<font><b/><sz val="16"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>'
-  +   '<font><b/><sz val="11"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>'
-  +   '<font><sz val="10"/><color rgb="FF7F7F7F"/><name val="맑은 고딕"/></font>'
-  + '</fonts>'
-  + '<fills count="7">'
-  +   '<fill><patternFill patternType="none"/></fill>'
-  +   '<fill><patternFill patternType="gray125"/></fill>'
-  +   '<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/><bgColor indexed="64"/></patternFill></fill>'
-  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>'
-  +   '<fill><patternFill patternType="solid"><fgColor rgb="FF1E7A5A"/><bgColor indexed="64"/></patternFill></fill>'
-  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFF3E8FF"/><bgColor indexed="64"/></patternFill></fill>'
-  +   '<fill><patternFill patternType="solid"><fgColor rgb="FFFFE3E6"/><bgColor indexed="64"/></patternFill></fill>'
-  + '</fills>'
-  + '<borders count="2"><border/>'
-  +   '<border><left style="thin"><color rgb="FFD9D9D9"/></left><right style="thin"><color rgb="FFD9D9D9"/></right>'
-  +   '<top style="thin"><color rgb="FFD9D9D9"/></top><bottom style="thin"><color rgb="FFD9D9D9"/></bottom></border>'
-  + '</borders>'
-  + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-  + '<cellXfs count="14">'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/>'
-  + '<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="1" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1" applyProtection="1"><alignment vertical="top" wrapText="1"/><protection locked="0"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>'
-  + '<xf xfId="0" numFmtId="0" fontId="3" fillId="0" borderId="0" applyFont="1"/>'
-  + '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
-  + '<xf xfId="0" numFmtId="0" fontId="4" fillId="0" borderId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
-  + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+function newStyles(){
+  var S = {
+    fonts:[
+      '<font><sz val="10"/><name val="맑은 고딕"/></font>',
+      '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font>',
+      '<font><b/><sz val="16"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>',
+      '<font><b/><sz val="11"/><color rgb="FF1F4E79"/><name val="맑은 고딕"/></font>',
+      '<font><sz val="10"/><color rgb="FF7F7F7F"/><name val="맑은 고딕"/></font>'
+    ],
+    fills:[
+      '<fill><patternFill patternType="none"/></fill>',
+      '<fill><patternFill patternType="gray125"/></fill>',
+      xlFill("FF1F4E79"), xlFill("FFF2F2F2"), xlFill("FF1E7A5A"),
+      xlFill("FFF3E8FF"), xlFill("FFFFE3E6")
+    ],
+    xfs:[
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/>',
+      '<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="1" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="5" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="6" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>',
+      '<xf xfId="0" numFmtId="0" fontId="3" fillId="0" borderId="0" applyFont="1"/>',
+      '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>',
+      '<xf xfId="0" numFmtId="0" fontId="4" fillId="0" borderId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+    ],
+    cache:{}
+  };
+
+  /* 원문(KR) 셀 — 원본의 서식을 그대로 옮긴다 */
+  S.src = function(sty, tone){
+    sty = sty || {};
+    var key = (sty.bold?"B":"") + "|" + (sty.color||"") + "|" + (sty.bg||"") + "|" + (tone||"");
+    if (this.cache[key] !== undefined) return this.cache[key];
+
+    var fontId = 0;
+    if (sty.bold || sty.color || tone === "strike"){
+      this.fonts.push('<font>' + (sty.bold ? '<b/>' : '') + (tone === "strike" ? '<strike/>' : '')
+        + '<sz val="10"/>' + (sty.color ? '<color rgb="FF'+sty.color+'"/>' : '')
+        + '<name val="맑은 고딕"/></font>');
+      fontId = this.fonts.length - 1;
+    }
+    var fillId;
+    if (sty.bg){ this.fills.push(xlFill("FF" + sty.bg)); fillId = this.fills.length - 1; }
+    else fillId = (tone === "region") ? 5 : (tone === "strike" ? 6 : 3);
+
+    this.xfs.push('<xf xfId="0" numFmtId="0" fontId="'+fontId+'" fillId="'+fillId+'" borderId="1"'
+      + ' applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+      + '<alignment vertical="top" wrapText="1"/></xf>');
+    this.cache[key] = this.xfs.length - 1;
+    return this.cache[key];
+  };
+
+  S.xml = function(){
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + '<fonts count="'+this.fonts.length+'">' + this.fonts.join("") + '</fonts>'
+      + '<fills count="'+this.fills.length+'">' + this.fills.join("") + '</fills>'
+      + '<borders count="2"><border/>'
+      +   '<border><left style="thin"><color rgb="FFD9D9D9"/></left><right style="thin"><color rgb="FFD9D9D9"/></right>'
+      +   '<top style="thin"><color rgb="FFD9D9D9"/></top><bottom style="thin"><color rgb="FFD9D9D9"/></bottom></border>'
+      + '</borders>'
+      + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+      + '<cellXfs count="'+this.xfs.length+'">' + this.xfs.join("") + '</cellXfs>'
+      + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  };
+  return S;
+}
 
 function xlCell(ref, val, style){
   if (typeof val === "number") return '<c r="'+ref+'" s="'+style+'"><v>'+val+'</v></c>';
@@ -949,21 +1046,26 @@ function guideSheet(langs, counts, total, sheetRows){
   gap();
 
   head("■ 반드시 지켜주세요");
-  row("×", "ID · 원문(KR) 열을 수정하거나 지우지 마세요. 이 두 값을 대조해서 번역을 원래 자리로 되돌립니다. 값이 바뀌면 그 행의 번역은 반영되지 않습니다. (실수 방지를 위해 언어 열 외에는 잠가 두었습니다)");
+  row("×", "ID · 원문(KR) 열을 수정하거나 지우지 마세요. 이 두 값을 대조해서 번역을 원래 자리로 되돌립니다. 값이 바뀌면 그 행의 번역은 반영되지 않고 건너뜁니다.");
   row("×", "행을 추가·삭제하거나 순서를 바꾸지 마세요. 필터·정렬은 보시는 동안 쓰셔도 되지만, 그 상태로 저장하지는 말아주세요.");
-  row("×", "원문 안의 숫자·기호를 임의로 바꾸지 마세요. 무엇을 그대로 둬야 하는지 '유지요소' 열에 정리해 두었습니다.");
-  row("○", "빈 칸으로 두면 그 항목은 한국어가 그대로 노출됩니다. 번역이 필요 없는 항목이면 원문을 그대로 복사해 넣어주세요.");
+  row("×", "원문 안의 숫자·기호를 임의로 바꾸지 마세요.");
+  row("○", "한국어와 1:1로 대응되지 않는 항목은 빈 칸으로 두셔도 됩니다. 빈 칸은 결과물에서도 빈 칸으로 나갑니다 — 한국어가 대신 노출되지 않습니다.");
   gap();
 
   head("■ 열 설명");
   row("ID", "항목 고유번호. 수정 금지.");
   row("구역", "페이지 안에서 이 문구가 속한 영역 이름.");
   row("표시", "따로 확인이 필요한 항목 표시. 아래 범례를 봐주세요.");
-  row("원문(KR)", "번역할 한국어 원문. 수정 금지.");
-  row("글자수", "원문의 길이(공백 포함). 아래 '길이 주의' 참고.");
-  row("유지요소", "번역 후에도 원문 그대로 남아야 하는 숫자·기호·영문 토큰. 비어 있으면 신경 쓰지 않으셔도 됩니다.");
+  row("원문(KR)", "번역할 한국어 원문. 원본 페이지의 서식을 그대로 옮겨 두었습니다. 수정 금지.");
   row("문맥", "이 문구가 들어있는 문단 전체. 앞뒤 맥락 파악용이며 번역 대상이 아닙니다.");
-  row(langs.join(" / "), "번역을 입력하는 칸. 이 칸들만 편집할 수 있습니다.");
+  row(langs.join(" / "), "번역을 입력하는 칸.");
+  gap();
+
+  head("■ 원문 서식 읽는 법");
+  row("굵게", "원본에서 굵게 처리된 문구입니다. 강조 의도가 있으니 번역문에서도 살려주세요.");
+  row("글자색", "원본에서 색이 지정된 문구입니다. 셀 글자색이 원본과 같은 색입니다.");
+  row("셀 배경색", "원본에서 배경색·형광으로 강조된 문구입니다. 셀 배경색이 원본과 같은 색입니다.");
+  row("취소선", "삭제 검토 대상으로 표시된 문구입니다. 아래 범례를 봐주세요.");
   gap();
 
   head("■ 표시 범례");
@@ -973,7 +1075,7 @@ function guideSheet(langs, counts, total, sheetRows){
   gap();
 
   head("■ 길이 주의");
-  row("", "독일어·프랑스어는 한국어 대비 최대 2배까지 길어집니다. 버튼·배너·탭처럼 폭이 정해진 자리에서 글자가 잘릴 수 있으니, 되도록 원문 글자수의 2배를 넘기지 말아주세요. 글자수가 15자 이하인 항목은 대부분 이런 짧은 UI 문구입니다.");
+  row("", "독일어·프랑스어는 한국어 대비 최대 2배까지 길어집니다. 버튼·배너·탭처럼 폭이 정해진 자리에서 글자가 잘릴 수 있으니, 원문이 짧은 항목일수록 길이를 신경 써 주세요.");
   gap();
 
   head("■ 엑셀 대신 CSV로 저장하실 경우");
@@ -1014,32 +1116,34 @@ function xlsxBlob(langs, onlyEmpty){
     if (s.type === "attr") mark.push(s.attr);
 
     var tone = (s.flags.indexOf("strike") >= 0) ? "strike" : (s.flags.indexOf("region") >= 0 ? "region" : "");
-    var r = {tone: tone, cells: [
+    var r = {tone: tone, sty: s.sty, cells: [
       s.id, s.section || "", mark.join("/"), s.original,
-      s.original.length, keepTokens(s.original).join(" · "),
       (s.ctx && s.ctx !== s.original) ? s.ctx : ""
     ]};
     for (j=0;j<langs.length;j++) r.cells.push(s.tr[langs[j]] || "");
     rows.push(r);
   }
 
-  // 헤더 + 본문을 셀 배열로
+  // 헤더 + 본문을 셀 배열로. 원문(KR) 칸에는 원본의 볼드·글자색·형광을 그대로 입힌다.
+  var ST = newStyles();
+  var SRC_COL = 3;
   var grid = [[]], ri;
   for (j=0;j<head.length;j++) grid[0].push({v:head[j], s:(j < nFixed ? 1 : 2)});
   for (ri=0;ri<rows.length;ri++){
     var line = [], tone = rows[ri].tone;
     for (j=0;j<rows[ri].cells.length;j++){
       var fixed = j < nFixed, st;
-      if (tone === "region") st = fixed ? 6 : 8;
+      if (j === SRC_COL) st = ST.src(rows[ri].sty, tone);
+      else if (tone === "region") st = fixed ? 6 : 8;
       else if (tone === "strike") st = fixed ? 7 : 9;
       else st = fixed ? 3 : 5;
-      if (fixed && (j === 0 || j === 4) && !tone) st = 4;   // ID·글자수는 가운데 정렬
+      if (fixed && j === 0 && !tone) st = 4;                // ID는 가운데 정렬
       line.push({v:rows[ri].cells[j], s:st});
     }
     grid.push(line);
   }
 
-  var wid = [6,16,13,46,8,20,40], cols = "";
+  var wid = [6,16,13,46,40], cols = "";
   for (j=0;j<head.length;j++) cols += '<col min="'+(j+1)+'" max="'+(j+1)+'" width="'+(wid[j] || 46)+'" customWidth="1"/>';
   var last = colL(head.length) + (rows.length + 1);
 
@@ -1053,8 +1157,6 @@ function xlsxBlob(langs, onlyEmpty){
     + '</sheetView></sheetViews>'
     + '<sheetFormatPr defaultRowHeight="15"/><cols>'+cols+'</cols>'
     + '<sheetData>'+xlSheetData(grid)+'</sheetData>'
-    // 언어 열만 편집 가능. 비밀번호가 없으므로 [검토 > 시트 보호 해제]로 언제든 풀 수 있다.
-    + '<sheetProtection sheet="1" objects="1" scenarios="1" formatCells="0" formatColumns="0" formatRows="0" autoFilter="0" sort="0"/>'
     + '<autoFilter ref="A1:'+last+'"/></worksheet>';
 
   var files = [
@@ -1082,7 +1184,7 @@ function xlsxBlob(langs, onlyEmpty){
       + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
       + '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
       + '</Relationships>')},
-    {name:"xl/styles.xml", data:u8(XL_STYLES)},
+    {name:"xl/styles.xml", data:u8(ST.xml())},
     {name:"xl/worksheets/sheet1.xml", data:u8(guideSheet(langs, counts, SEGS.length, rows.length))},
     {name:"xl/worksheets/sheet2.xml", data:u8(sheet)}
   ];
@@ -1214,7 +1316,7 @@ function applyTable(rows){
   for (i=0;i<head.length;i++){
     if (i === cId || i === cSrc) continue;
     var h = head[i];
-    if (!h || XL_FIXED.indexOf(h) >= 0) continue;
+    if (!h || XL_IGNORE.indexOf(h) >= 0) continue;
     var lg = langFromHeader(h);
     if (!lg || seenLang[lg]) continue;
     seenLang[lg] = 1;
@@ -1559,6 +1661,46 @@ function qaChips(q){
   for (var i=0;i<q.length;i++) h += ' <span class="chip q" title="'+esc(QA_TIP[q[i]])+'">'+esc(QA_LABEL[q[i]])+'</span>';
   return h;
 }
+function relLum(hex){
+  var c = [0,2,4].map(function(i){
+    var v = parseInt(hex.substr(i,2),16) / 255;
+    return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+  });
+  return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2];
+}
+function contrast(a, b){
+  var la = relLum(a), lb = relLum(b);
+  return (Math.max(la,lb) + 0.05) / (Math.min(la,lb) + 0.05);
+}
+/* 원문을 원본 페이지의 서식(볼드·글자색·형광) 그대로 보여준다.
+   단, 그대로 그리면 읽을 수 없는 조합이 생긴다(형광 노랑 위의 밝은 글자, 어두운 배경 위의 검은 글자).
+   그런 경우에만 읽을 수 있는 쪽으로 보정한다 — 실제 색은 옆의 견본 칩이 알려준다. */
+function srcHtml(s){
+  var t = esc(s.original), sty = s.sty || {}, css = "";
+  if (sty.bold) css += "font-weight:800;";
+
+  if (sty.bg){
+    css += "background:#" + sty.bg + ";";
+    var fg = sty.color;
+    if (!fg || contrast(fg, sty.bg) < 3)                  // 배경 위에서 안 보이면 흑/백 중 잘 보이는 쪽
+      fg = (relLum(sty.bg) > 0.45) ? "111111" : "FFFFFF";
+    css += "color:#" + fg + ";";
+  } else if (sty.color){
+    css += "color:#" + sty.color + ";";
+    if (contrast(sty.color, "0A1122") < 3)                // 어두운 글자색은 밝은 판을 깔아준다
+      css += "background:#E8EEFC;";
+  }
+  if (s.flags.indexOf("strike") >= 0) css += "text-decoration:line-through;";
+  return css ? '<span class="fmt" style="' + css + '">' + t + '</span>' : t;
+}
+/* 색이 어두워 배경에 묻히는 경우가 있으므로 색상 견본 칩을 따로 붙인다 */
+function styleChips(s){
+  var sty = s.sty || {}, h = "";
+  if (sty.bold) h += ' <span class="chip s" title="원본에서 굵게 처리된 문구">굵게</span>';
+  if (sty.color) h += ' <span class="chip s" title="원본 글자색"><i style="background:#'+sty.color+'"></i>#'+sty.color+'</span>';
+  if (sty.bg) h += ' <span class="chip s" title="원본 배경·형광색"><i style="background:#'+sty.bg+'"></i>형광 #'+sty.bg+'</span>';
+  return h;
+}
 function renderTable(){
   var q = $("#q").value.trim().toLowerCase();
   var onlyEmpty = $("#fEmpty").checked, onlyFlag = $("#fFlag").checked, onlyQa = $("#fQa").checked;
@@ -1587,7 +1729,7 @@ function renderTable(){
     var meta = (s.type === "attr") ? ' <span class="chip w">'+esc(s.attr)+'</span>' : "";
     h += '<div class="seg'+(tr.trim()?" done":"")+(qa.length?" warn":"")+'" data-id="'+s.id+'">'
        +   '<div class="id">#'+s.id+'</div>'
-       +   '<div class="src">'+esc(s.original)+'<span class="meta">'+meta+flagChips(s.flags)+qaChips(qa)+'</span></div>'
+       +   '<div class="src">'+srcHtml(s)+'<span class="meta">'+meta+flagChips(s.flags)+styleChips(s)+qaChips(qa)+'</span></div>'
        +   '<textarea data-id="'+s.id+'" class="'+(badTr(tr)?"bad":"")+'" aria-label="#'+s.id+' '+esc(CUR)+' 번역" placeholder="'+esc(CUR)+' 번역…">'+esc(tr)+'</textarea>'
        + '</div>';
   }
@@ -1722,7 +1864,7 @@ $("#table").addEventListener("input", function(e){
   var metaEl = seg.querySelector(".src .meta");
   if (metaEl){
     var keep = (s.type === "attr") ? ' <span class="chip w">'+esc(s.attr)+'</span>' : "";
-    metaEl.innerHTML = keep + flagChips(s.flags) + qaChips(qa);
+    metaEl.innerHTML = keep + flagChips(s.flags) + styleChips(s) + qaChips(qa);
   }
   renderStat();
   renderLangs();
@@ -2008,7 +2150,7 @@ $("#doBuild").onclick = function(){
   var st = stats();
   var warn = (st.tot - st.done);
   $("#buildInfo").innerHTML = '<span class="chip">'+esc(langLabel(CUR))+'</span> ' + out.length.toLocaleString() + '자 생성' +
-    (warn ? ' · <b style="color:var(--warn)">미번역 '+warn+'개는 한국어 그대로 남았습니다</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>');
+    (warn ? ' · <b style="color:var(--warn)">미번역 '+warn+'개는 빈칸으로 출력됨</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>');
   preview(out);
   save();
 };
@@ -2024,7 +2166,7 @@ $("#buildAll").onclick = function(){
     var L = LANGS[i], out = build(L), rest = SEGS.length - doneCount(L);
     files.push({name: base + "_" + L + ".txt", data: u8(out)});
     lines.push('<div>· <b style="color:#fff">' + esc(base + "_" + L + ".txt") + '</b> — ' + out.length.toLocaleString() + '자'
-      + (rest ? ' · <b style="color:var(--warn)">미번역 ' + rest + '개는 한국어 그대로</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>') + '</div>');
+      + (rest ? ' · <b style="color:var(--warn)">미번역 ' + rest + '개는 빈칸</b>' : ' · <b style="color:var(--acc2)">전체 번역 완료</b>') + '</div>');
   }
   dlBytes(zip(files), base + "_" + stamp() + ".zip");
 
